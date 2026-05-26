@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>φ-Scout · 3D Visualizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #03060f;
+      --grid:      #1a2a44;
+      --pane:      #050c1a;
+      --text:      #94b0d4;
+      --gold:      #f0b429;
+      --cyan:      #00e5f8;
+      --panel-bg:  #060f1f;
+      --btn-bg:    #0a1428;
+      --btn-hover: #1a3060;
+      --border:    #1a3060;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── Canvas layer ── */
+    #container {
+      position: fixed;
+      inset: 0;
+    }
+
+    /* ── Top bar ── */
+    #topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 40px;
+      background: rgba(5,12,26,0.82);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 10px;
+      z-index: 20;
+      backdrop-filter: blur(4px);
+    }
+
+    #topbar-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 13px;
+      color: var(--gold);
+      white-space: nowrap;
+      margin-right: 10px;
+    }
+
+    .divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+
+    .btn {
+      background: var(--btn-bg);
+      color: var(--gold);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      padding: 4px 11px;
+      white-space: nowrap;
+      transition: background 0.12s, border-color 0.12s;
+      line-height: 1.4;
+    }
+    .btn:hover { background: var(--btn-hover); border-color: var(--cyan); }
+    .btn:active { background: #223060; }
+
+    #btn-sync { color: var(--cyan); border-color: var(--cyan); }
+    #btn-grid  { color: var(--grid); }
+
+    /* ── Info strip under topbar ── */
+    #info {
+      position: fixed;
+      top: 44px;
+      left: 10px;
+      font-size: 10px;
+      color: var(--text);
+      z-index: 15;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    /* ── Hint bar ── */
+    #hint {
+      position: fixed;
+      bottom: 7px;
+      left: 10px;
+      font-size: 10px;
+      color: var(--grid);
+      z-index: 15;
+      pointer-events: none;
+    }
+
+    /* ── Load panel (shown when no data) ── */
+    #load-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(3,6,15,0.88);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+    }
+
+    #load-box {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      padding: 28px 32px;
+      width: 520px;
+      max-width: 92vw;
+    }
+
+    #load-box h2 {
+      font-family: 'Orbitron', monospace;
+      font-size: 15px;
+      color: var(--gold);
+      margin-bottom: 5px;
+    }
+
+    #load-box .subtitle {
+      font-size: 11px;
+      color: var(--text);
+      margin-bottom: 18px;
+      line-height: 1.55;
+    }
+
+    .load-section {
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }
+    .load-section h3 {
+      font-size: 11px;
+      color: var(--cyan);
+      margin-bottom: 8px;
+    }
+
+    #csv-paste {
+      width: 100%;
+      height: 90px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      padding: 6px;
+      resize: vertical;
+      margin-bottom: 8px;
+    }
+    #csv-paste:focus { outline: none; border-color: var(--cyan); }
+
+    .load-row { display: flex; gap: 8px; }
+
+    #load-error {
+      color: #ff7777;
+      font-size: 10px;
+      margin-top: 8px;
+      min-height: 14px;
+    }
+
+    /* ── CSS2D point labels ── */
+    .pt-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      pointer-events: none;
+      text-shadow:
+        0 0 3px #03060f,
+        0 0 3px #03060f,
+        0 0 5px #03060f;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Three.js canvas goes here -->
+<div id="container"></div>
+
+<!-- Top button bar -->
+<div id="topbar">
+  <a class="btn" id="btn-phi" href="phi-scout.html" title="Open φ-Scout waypoint generator">← φ-Scout</a>
+  <span id="topbar-title">φ-Scout &nbsp;·&nbsp; 3D Visualizer</span>
+  <div class="divider"></div>
+  <button class="btn" id="btn-sync"   title="Reload latest waypoints from φ-Scout’s shared localStorage (same browser origin)">⟳ φ-Scout Sync</button>
+  <button class="btn" id="btn-file"   title="Load a CSV file exported from φ-Scout">📁 Load CSV</button>
+  <div class="divider"></div>
+  <button class="btn" id="btn-spiral">Hide Spiral [T]</button>
+  <button class="btn" id="btn-grid"  >Grid: Dim [B]</button>
+  <button class="btn" id="btn-free"  >Free Rotate [F]</button>
+  <div class="divider"></div>
+  <span id="sync-status" style="font-size:10px; color:var(--cyan); opacity:0; transition:opacity 0.4s;"></span>
+</div>
+
+<div id="info">No data — click ⟳ Sync from φ-Scout, or 📁 Load CSV</div>
+<div id="hint">🖱&nbsp; Left-drag: rotate &nbsp;|&nbsp; Scroll: zoom &nbsp;|&nbsp; Right-drag: pan &nbsp;|&nbsp; T: spiral &nbsp;|&nbsp; B: bright grid &nbsp;|&nbsp; F: free rotate (no pole-lock)</div>
+
+<!-- Load / paste panel -->
+<div id="load-overlay">
+  <div id="load-box">
+    <h2>φ-Scout · 3D Visualizer</h2>
+    <p class="subtitle">
+      Generate waypoints in φ-Scout, then click <strong style="color:var(--cyan)">⟳ Sync from φ-Scout</strong> above —<br>
+      the latest CSV is shared automatically via localStorage.<br>
+      Or load a CSV file / paste CSV text below.
+    </p>
+
+    <div class="load-section">
+      <h3>Option 1 — φ-Scout shared memory (same browser, same origin)</h3>
+      <p style="font-size:10px; color:var(--text); margin-bottom:8px; line-height:1.5">
+        Requires both pages open in the <strong>same browser</strong>.<br>
+        Works automatically on web hosting (GitHub Pages, etc.).<br>
+        <em style="color:#f07740">file:// note: works in Chrome; Firefox isolates local files.</em>
+      </p>
+      <button class="btn" id="btn-sync2" style="color:var(--cyan); border-color:var(--cyan)">⟳ φ-Scout Sync</button>
+    </div>
+
+    <div class="load-section">
+      <h3>Option 2 — File or paste</h3>
+      <textarea id="csv-paste" placeholder="Point#,Name,X,Y,Z,HexColor&#10;1,WP-01,1000,200,-500,#FF4444&#10;2,WP-02,…"></textarea>
+      <div class="load-row">
+        <button class="btn" id="btn-file2">📁 Choose CSV File</button>
+        <button class="btn" id="btn-paste">▶ Load Pasted CSV</button>
+      </div>
+    </div>
+
+    <div id="load-error"></div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept=".csv" style="display:none">
+
+<!-- ── Three.js (ES module + importmap) ─────────────────────────────────── -->
+<script type="importmap">
+{
+  "imports": {
+    "three":          "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+    "three/addons/":  "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls }                  from 'three/addons/controls/OrbitControls.js';
+import { TrackballControls }              from 'three/addons/controls/TrackballControls.js';
+import { CSS2DRenderer, CSS2DObject }     from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ── Constants ──────────────────────────────────────────────────────────────
+const BG_COLOR   = 0x03060f;
+const GRID_HEX   = '#1a2a44';
+const TEXT_HEX   = '#94b0d4';
+const GOLD_HEX   = '#f0b429';
+const CYAN_HEX   = '#00e5f8';
+const ARC_STEPS  = 40;
+const LS_KEY     = 'phiscout_csvOutput';   // phi-scout localStorage key
+
+const GRID_STATES = [
+  { hex: GRID_HEX, opacity: 0.35, label: 'Grid: Dim [B]',    btnColor: GRID_HEX },
+  { hex: TEXT_HEX, opacity: 0.62, label: 'Grid: Mid [B]',    btnColor: TEXT_HEX },
+  { hex: CYAN_HEX, opacity: 0.88, label: 'Grid: Bright [B]', btnColor: CYAN_HEX },
+];
+
+// ── Renderer ───────────────────────────────────────────────────────────────
+const container = document.getElementById('container');
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(BG_COLOR);
+container.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(window.innerWidth, window.innerHeight);
+Object.assign(labelRenderer.domElement.style, {
+  position: 'absolute', top: '0', left: '0', pointerEvents: 'none'
+});
+container.appendChild(labelRenderer.domElement);
+
+// ── Scene ──────────────────────────────────────────────────────────────────
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1e8);
+camera.position.set(0, 0, 9000);
+
+const controls_orbit = new OrbitControls(camera, renderer.domElement);
+controls_orbit.enableDamping  = true;
+controls_orbit.dampingFactor  = 0.07;
+controls_orbit.zoomSpeed      = 1.2;
+
+const controls_track = new TrackballControls(camera, renderer.domElement);
+controls_track.rotateSpeed  = 3.0;
+controls_track.zoomSpeed    = 1.2;
+controls_track.panSpeed     = 0.8;
+controls_track.enabled      = false;
+
+let controls    = controls_orbit;   // active controls
+let freeRotate  = false;
+
+// scene groups — rebuilt on each load
+let spiralGroup = new THREE.Group();
+let wireGroup   = new THREE.Group();
+let worldGroup  = new THREE.Group();   // spokes + dots + labels
+scene.add(spiralGroup, wireGroup, worldGroup);
+
+// ── State ──────────────────────────────────────────────────────────────────
+let gridStateIdx   = 0;
+let spiralVisible  = true;
+let wfMaterial     = null;   // single shared wireframe material
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function hexToRGB01(h) {
+  const s = h.replace('#', '');
+  return {
+    r: parseInt(s.slice(0,2), 16) / 255,
+    g: parseInt(s.slice(2,4), 16) / 255,
+    b: parseInt(s.slice(4,6), 16) / 255,
+  };
+}
+
+function geodesicArc(p1rel, p2rel, r, steps) {
+  const len1 = p1rel.length();
+  const len2 = p2rel.length();
+  const u1   = len1 > 0 ? p1rel.clone().divideScalar(len1) : new THREE.Vector3(0,1,0);
+  const u2   = len2 > 0 ? p2rel.clone().divideScalar(len2) : new THREE.Vector3(0,1,0);
+  const dot  = Math.max(-1, Math.min(1, u1.dot(u2)));
+  const omega = Math.acos(dot);
+  const sinO  = Math.sin(omega);
+  const pts   = [];
+  for (let i = 0; i < steps; i++) {
+    const t = i / (steps - 1);
+    let pt;
+    if (omega < 1e-10) {
+      pt = u1.clone().multiplyScalar(r);
+    } else {
+      const a = Math.sin((1 - t) * omega) / sinO;
+      const b = Math.sin(t       * omega) / sinO;
+      pt = new THREE.Vector3(
+        (a * u1.x + b * u2.x) * r,
+        (a * u1.y + b * u2.y) * r,
+        (a * u1.z + b * u2.z) * r
+      );
+    }
+    pts.push(pt);
+  }
+  return pts;
+}
+
+function buildWireframe(r) {
+  const group = new THREE.Group();
+  const mat   = new THREE.LineBasicMaterial({
+    color: new THREE.Color(GRID_HEX),
+    transparent: true,
+    opacity: GRID_STATES[0].opacity,
+  });
+  wfMaterial = mat;
+
+  const nLat = 18, nLon = 18, seg = 64;
+
+  // latitude rings
+  for (let i = 1; i < nLat; i++) {
+    const phi = (i / nLat) * Math.PI;
+    const y   = r * Math.cos(phi);
+    const rr  = r * Math.sin(phi);
+    const pts = [];
+    for (let j = 0; j <= seg; j++) {
+      const th = (j / seg) * 2 * Math.PI;
+      pts.push(new THREE.Vector3(rr * Math.cos(th), y, rr * Math.sin(th)));
+    }
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+  }
+
+  // longitude arcs
+  for (let j = 0; j < nLon; j++) {
+    const th  = (j / nLon) * 2 * Math.PI;
+    const pts = [];
+    for (let i = 0; i <= seg; i++) {
+      const phi = (i / seg) * Math.PI;
+      pts.push(new THREE.Vector3(
+        r * Math.sin(phi) * Math.cos(th),
+        r * Math.cos(phi),
+        r * Math.sin(phi) * Math.sin(th)
+      ));
+    }
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+  }
+
+  return group;
+}
+
+// ── CSV Parser ─────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) throw new Error('CSV has no data rows.');
+  const header = lines[0].split(',').map(h => h.trim());
+  const rows   = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = lines[i].split(',');
+    const row  = {};
+    header.forEach((h, idx) => row[h] = (vals[idx] ?? '').trim());
+    rows.push(row);
+  }
+  const req = ['Point#', 'Name', 'X', 'Y', 'Z', 'HexColor'];
+  for (const col of req) {
+    if (!(col in (rows[0] ?? {})))
+      throw new Error(`Missing required column: "${col}"`);
+  }
+  rows.sort((a, b) => parseInt(a['Point#']) - parseInt(b['Point#']));
+  return rows;
+}
+
+// ── Build 3-D scene ─────────────────────────────────────────────────────────
+function buildScene(rows) {
+  // ── clear groups ──────────────────────────────────────────────────────────
+  spiralGroup.clear();
+  wireGroup.clear();
+  worldGroup.clear();
+  wfMaterial = null;
+
+  const n      = rows.length;
+  const xs     = rows.map(r => parseFloat(r.X));
+  const ys     = rows.map(r => parseFloat(r.Y));
+  const zs     = rows.map(r => parseFloat(r.Z));
+  const colors = rows.map(r => r.HexColor.replace(/[^0-9a-fA-F#]/g, '').trim());
+
+  const cx = xs.reduce((a,b)=>a+b,0) / n;
+  const cy = ys.reduce((a,b)=>a+b,0) / n;
+  const cz = zs.reduce((a,b)=>a+b,0) / n;
+
+  const actual_r = Math.sqrt(
+    xs.map((x,i) => (x-cx)**2 + (ys[i]-cy)**2 + (zs[i]-cz)**2)
+      .reduce((a,b) => a+b, 0) / n
+  );
+
+  // ── camera ────────────────────────────────────────────────────────────────
+  camera.position.set(cx, cy, cz + actual_r * 2.6);
+  camera.near = actual_r * 0.001;
+  camera.far  = actual_r * 20;
+  camera.updateProjectionMatrix();
+  controls_orbit.target.set(cx, cy, cz);
+  controls_orbit.minDistance = actual_r * 0.2;
+  controls_orbit.maxDistance = actual_r * 12;
+  controls_orbit.update();
+  controls_track.target.set(cx, cy, cz);
+  controls_track.update();
+
+  // ── wireframe ─────────────────────────────────────────────────────────────
+  const wf = buildWireframe(actual_r);
+  wf.position.set(cx, cy, cz);
+  wireGroup.add(wf);
+  applyGridState();   // apply current brightness state to fresh material
+
+  // ── center marker (gold ×3 crossing lines) ───────────────────────────────
+  const arm = actual_r * 0.025;
+  const centerPts = [
+    new THREE.Vector3(cx - arm, cy, cz), new THREE.Vector3(cx + arm, cy, cz),
+    new THREE.Vector3(cx, cy - arm, cz), new THREE.Vector3(cx, cy + arm, cz),
+    new THREE.Vector3(cx, cy, cz - arm), new THREE.Vector3(cx, cy, cz + arm),
+  ];
+  const centerGeo = new THREE.BufferGeometry().setFromPoints(centerPts);
+  const centerMat = new THREE.LineBasicMaterial({ color: new THREE.Color(GOLD_HEX), linewidth: 2 });
+  worldGroup.add(new THREE.LineSegments(centerGeo, centerMat));
+
+  // ── spokes ────────────────────────────────────────────────────────────────
+  const spokeMat = new THREE.LineBasicMaterial({
+    color: 0x1a3060, transparent: true, opacity: 0.45
+  });
+  for (let i = 0; i < n; i++) {
+    const geo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(cx, cy, cz),
+      new THREE.Vector3(xs[i], ys[i], zs[i])
+    ]);
+    worldGroup.add(new THREE.Line(geo, spokeMat));
+  }
+
+  // ── waypoint dots + labels ────────────────────────────────────────────────
+  const dotR   = Math.max(actual_r * 0.013, 20);
+  const dotGeo = new THREE.SphereGeometry(dotR, 10, 10);
+
+  for (let i = 0; i < n; i++) {
+    const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(colors[i]) });
+    const dot = new THREE.Mesh(dotGeo, mat);
+    dot.position.set(xs[i], ys[i], zs[i]);
+    worldGroup.add(dot);
+
+    // CSS2D label
+    const div        = document.createElement('div');
+    div.className    = 'pt-label';
+    div.style.color  = colors[i];
+    div.textContent  = ` ${i + 1}`;
+    const lbl        = new CSS2DObject(div);
+    lbl.position.set(xs[i], ys[i], zs[i]);
+    worldGroup.add(lbl);
+  }
+
+  // ── SLERP arcs: generation order, HexColor gradient ──────────────────────
+  for (let i = 0; i < n - 1; i++) {
+    const p1  = new THREE.Vector3(xs[i]   - cx, ys[i]   - cy, zs[i]   - cz);
+    const p2  = new THREE.Vector3(xs[i+1] - cx, ys[i+1] - cy, zs[i+1] - cz);
+    const c1  = hexToRGB01(colors[i]);
+    const c2  = hexToRGB01(colors[i+1]);
+
+    const arcPts = geodesicArc(p1, p2, actual_r, ARC_STEPS);
+
+    const posArr   = [];
+    const colorArr = [];
+    arcPts.forEach((pt, j) => {
+      posArr.push(pt.x + cx, pt.y + cy, pt.z + cz);
+      const t = j / (ARC_STEPS - 1);
+      colorArr.push(
+        c1.r + (c2.r - c1.r) * t,
+        c1.g + (c2.g - c1.g) * t,
+        c1.b + (c2.b - c1.b) * t,
+      );
+    });
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(posArr,   3));
+    geo.setAttribute('color',    new THREE.Float32BufferAttribute(colorArr, 3));
+    const mat = new THREE.LineBasicMaterial({ vertexColors: true });
+    spiralGroup.add(new THREE.Line(geo, mat));
+  }
+
+  // apply current spiral visibility
+  spiralGroup.visible = spiralVisible;
+
+  // ── info bar ──────────────────────────────────────────────────────────────
+  document.getElementById('info').textContent =
+    `${n} waypoints  ·  r ≈ ${Math.round(actual_r).toLocaleString()} m  ·  ` +
+    `Center (${cx.toFixed(1)}, ${cy.toFixed(1)}, ${cz.toFixed(1)})`;
+
+  document.getElementById('load-overlay').style.display = 'none';
+}
+
+// ── Free rotation toggle (Trackball ↔ Orbit) ─────────────────────────────
+function toggleFreeRotate() {
+  freeRotate = !freeRotate;
+  if (freeRotate) {
+    controls_orbit.enabled = false;
+    controls_track.target.copy(controls_orbit.target);
+    controls_track.enabled = true;
+    controls = controls_track;
+  } else {
+    controls_track.enabled = false;
+    controls_orbit.target.copy(controls_track.target);
+    controls_orbit.enabled = true;
+    controls = controls_orbit;
+  }
+  document.getElementById('btn-free').textContent =
+    freeRotate ? 'Orbit Mode [F]' : 'Free Rotate [F]';
+  document.getElementById('btn-free').style.color =
+    freeRotate ? 'var(--cyan)' : '';
+}
+
+// ── Grid brightness ─────────────────────────────────────────────────────────
+function applyGridState() {
+  if (!wfMaterial) return;
+  const s = GRID_STATES[gridStateIdx];
+  wfMaterial.color.set(s.hex);
+  wfMaterial.opacity = s.opacity;
+  wfMaterial.needsUpdate = true;
+  const btn = document.getElementById('btn-grid');
+  btn.textContent  = s.label;
+  btn.style.color  = s.btnColor;
+}
+
+function cycleGrid() {
+  gridStateIdx = (gridStateIdx + 1) % GRID_STATES.length;
+  applyGridState();
+}
+
+// ── Spiral toggle ───────────────────────────────────────────────────────────
+function toggleSpiral() {
+  spiralVisible = !spiralVisible;
+  spiralGroup.visible = spiralVisible;
+  document.getElementById('btn-spiral').textContent =
+    spiralVisible ? 'Hide Spiral [T]' : 'Show Spiral [T]';
+}
+
+// ── Load helpers ────────────────────────────────────────────────────────────
+function showError(msg) {
+  const el = document.getElementById('load-error');
+  if (el) el.textContent = msg;
+  if (msg) console.error('[φ-Scout viz]', msg);
+}
+
+function showSyncStatus(msg, color) {
+  const el = document.getElementById('sync-status');
+  el.textContent = msg;
+  el.style.color = color || 'var(--cyan)';
+  el.style.opacity = '1';
+  clearTimeout(showSyncStatus._t);
+  showSyncStatus._t = setTimeout(() => { el.style.opacity = '0'; }, 3500);
+}
+
+function loadCSVText(text, source) {
+  showError('');
+  try {
+    const rows = parseCSV(text);
+    buildScene(rows);
+    if (source) showSyncStatus(source);
+  } catch (e) {
+    showError('⚠ ' + e.message);
+    document.getElementById('load-overlay').style.display = 'flex';
+  }
+}
+
+function syncFromPhiScout(silent) {
+  const raw = localStorage.getItem('phiscout_csvOutput');
+  if (!raw) {
+    if (!silent) {
+      showError('⚠ No data in localStorage — generate waypoints in φ-Scout first.');
+      document.getElementById('load-overlay').style.display = 'flex';
+    }
+    return;
+  }
+  let csv;
+  try { csv = JSON.parse(raw); } catch (_) { csv = raw; }
+  loadCSVText(csv, '⟳ Synced from φ-Scout');
+}
+
+// ── Button wiring ────────────────────────────────────────────────────────────
+document.getElementById('btn-sync').addEventListener('click',   () => syncFromPhiScout(false));
+document.getElementById('btn-sync2').addEventListener('click',  () => syncFromPhiScout(false));
+document.getElementById('btn-spiral').addEventListener('click', toggleSpiral);
+document.getElementById('btn-grid').addEventListener('click',   cycleGrid);
+document.getElementById('btn-free').addEventListener('click',   toggleFreeRotate);
+
+document.getElementById('btn-file').addEventListener('click',  () => document.getElementById('file-input').click());
+document.getElementById('btn-file2').addEventListener('click', () => document.getElementById('file-input').click());
+document.getElementById('btn-paste').addEventListener('click', () => {
+  const t = document.getElementById('csv-paste').value;
+  if (t.trim()) loadCSVText(t);
+  else showError('⚠ Paste your CSV text into the box above first.');
+});
+
+const fileInput = document.getElementById('file-input');
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => loadCSVText(ev.target.result);
+  reader.readAsText(file);
+  fileInput.value = '';
+});
+
+// ── Drag-and-drop CSV onto window ────────────────────────────────────────────
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => loadCSVText(ev.target.result);
+  reader.readAsText(file);
+});
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────────────
+window.addEventListener('keydown', e => {
+  // Don't fire when typing in textarea
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  if (e.key === 't' || e.key === 'T') toggleSpiral();
+  if (e.key === 'b' || e.key === 'B') cycleGrid();  if (e.key === 'f' || e.key === 'F') toggleFreeRotate();
+});
+
+// ── Auto-sync: listen for φ-Scout generating new waypoints in another tab ──────
+window.addEventListener('storage', e => {
+  if (e.key === 'phiscout_csvOutput' && e.newValue) {
+    let csv;
+    try { csv = JSON.parse(e.newValue); } catch (_) { csv = e.newValue; }
+    loadCSVText(csv, '⟳ Auto-synced from φ-Scout');
+  }});
+
+// ── Resize ─────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ── Render loop ────────────────────────────────────────────────────────────
+(function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+})();
+
+// ── Auto-sync on load ──────────────────────────────────────────────────────
+syncFromPhiScout(true);   // silent: show overlay only if no data found
+</script>
+</body>
+</html>
