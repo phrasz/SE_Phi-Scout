@@ -1,8 +1,13 @@
 # φ-Scout
 
-**Fibonacci sphere GPS waypoint generator for Space Engineers.**
+## 🔴 See Live
+| Tool | Link |
+|---|---|
+| φ-Scout (generator) | **[phrasz.github.io/SE_Phi-Scout/phi-scout.html](https://phrasz.github.io/SE_Phi-Scout/phi-scout.html)** |
+| 3D Visualizer | **[phrasz.github.io/SE_Phi-Scout/phi-scout-viz.html](https://phrasz.github.io/SE_Phi-Scout/phi-scout-viz.html)** |
 
-Generate optimally-spaced search patterns on any sphere — fewest stops, full coverage, no gaps.
+> ⚠️ **Use a Chromium-based browser** (Chrome, Edge, Brave, etc.).  
+> Firefox isolates `file://` pages from each other — the live link-between-tools localStorage sync **will not work** in Firefox.
 
 ---
 
