@@ -1,0 +1,2453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>φ-Scout · Fibonacci Sphere Waypoint Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* ══════════════════════════════════════════════
+       VARIABLES
+    ══════════════════════════════════════════════ */
+    :root {
+      --bg:           #03060f;
+      --panel:        #070d1c;
+      --panel-alt:    #0a1228;
+      --border:       rgba(90,150,255,0.14);
+      --border-hi:    rgba(90, 189, 255, 0.38);
+      --gold:         #f0b429;
+      --gold-dim:     #8c6510;
+      --gold-glow:    rgba(240,180,41,0.35);
+      --cyan:         #00e5f8;
+      --cyan-dim:     #006e7a;
+      --cyan-glow:    rgba(0,229,248,0.3);
+      --text:         #b0ccf0;
+      --text-bright:  #cfe0ff;
+      --text-dim:     #76afd4;
+      --green:        #3dffaa;
+      --red:          #ff5555;
+      --mono:         'Share Tech Mono', 'Courier New', monospace;
+      --head:         'Orbitron', sans-serif;
+      --body:         'Rajdhani', sans-serif;
+    }
+
+    /* ══════════════════════════════════════════════
+       RESET + BASE
+    ══════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      min-height: 100vh;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--body);
+      font-size: 16px;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    /* ══════════════════════════════════════════════
+       STARFIELD (layered CSS)
+    ══════════════════════════════════════════════ */
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::before {
+      background-image:
+        radial-gradient(1px 1px at  8% 12%, rgba(255,255,255,.75) 0%,transparent 100%),
+        radial-gradient(1px 1px at 22% 43%, rgba(255,255,255,.55) 0%,transparent 100%),
+        radial-gradient(1px 1px at 37%  6%, rgba(255,255,255,.65) 0%,transparent 100%),
+        radial-gradient(1px 1px at 51% 57%, rgba(255,255,255,.45) 0%,transparent 100%),
+        radial-gradient(1px 1px at 67% 22%, rgba(255,255,255,.70) 0%,transparent 100%),
+        radial-gradient(1px 1px at 83% 71%, rgba(255,255,255,.55) 0%,transparent 100%),
+        radial-gradient(1px 1px at 14% 78%, rgba(255,255,255,.65) 0%,transparent 100%),
+        radial-gradient(1px 1px at 29% 91%, rgba(255,255,255,.35) 0%,transparent 100%),
+        radial-gradient(1px 1px at 59% 33%, rgba(255,255,255,.55) 0%,transparent 100%),
+        radial-gradient(1px 1px at 78% 48%, rgba(255,255,255,.60) 0%,transparent 100%),
+        radial-gradient(1px 1px at  3% 56%, rgba(200,220,255,.65) 0%,transparent 100%),
+        radial-gradient(1px 1px at 44% 68%, rgba(200,220,255,.55) 0%,transparent 100%),
+        radial-gradient(1px 1px at 89% 11%, rgba(200,220,255,.70) 0%,transparent 100%),
+        radial-gradient(2px 2px at 33% 27%, rgba(180,210,255,.40) 0%,transparent 100%),
+        radial-gradient(2px 2px at 74% 84%, rgba(180,210,255,.50) 0%,transparent 100%),
+        radial-gradient(1px 1px at 91% 32%, rgba(255,240,200,.65) 0%,transparent 100%),
+        radial-gradient(1px 1px at 17% 49%, rgba(255,240,200,.45) 0%,transparent 100%),
+        radial-gradient(1px 1px at 63% 63%, rgba(255,240,200,.50) 0%,transparent 100%),
+        radial-gradient(1px 1px at 47% 87%, rgba(255,255,255,.35) 0%,transparent 100%),
+        radial-gradient(1px 1px at  6% 94%, rgba(255,255,255,.40) 0%,transparent 100%),
+        radial-gradient(1px 1px at 55% 19%, rgba(255,255,255,.60) 0%,transparent 100%),
+        radial-gradient(1px 1px at 96% 66%, rgba(200,220,255,.45) 0%,transparent 100%),
+        radial-gradient(2px 2px at 41% 52%, rgba(180,200,255,.30) 0%,transparent 100%);
+    }
+
+    body::after {
+      background:
+        radial-gradient(ellipse 70% 50% at 50% 0%,   rgba(0,30,80,.5) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 40% at 0%  100%, rgba(0,20,60,.4) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 100% 60%, rgba(20,0,60,.3) 0%, transparent 70%);
+    }
+
+    /* ══════════════════════════════════════════════
+       LAYOUT
+    ══════════════════════════════════════════════ */
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 36px 20px 100px;
+    }
+
+    /* ══════════════════════════════════════════════
+       HEADER
+    ══════════════════════════════════════════════ */
+    header {
+      text-align: center;
+      padding: 36px 0 28px;
+      margin-bottom: 36px;
+    }
+
+    .logo-wrap {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .logo-phi {
+      font-family: var(--head);
+      font-size: 4rem;
+      font-weight: 800;
+      color: var(--gold);
+      text-shadow: 0 0 18px var(--gold-glow), 0 0 40px rgba(240,180,41,.2);
+      letter-spacing: -3px;
+      line-height: 1;
+    }
+
+    .logo-dash {
+      font-family: var(--head);
+      font-size: 2rem;
+      color: var(--text-dim);
+      font-weight: 400;
+      line-height: 1;
+    }
+
+    .logo-scout {
+      font-family: var(--head);
+      font-size: 2.6rem;
+      font-weight: 400;
+      color: var(--cyan);
+      text-shadow: 0 0 14px var(--cyan-glow);
+      letter-spacing: 7px;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+
+    .tagline {
+      font-family: var(--mono);
+      font-size: 0.73rem;
+      color: var(--text-dim);
+      letter-spacing: 3.5px;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    .header-rule {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    .header-rule::before, .header-rule::after {
+      content: '';
+      width: 120px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold-dim));
+    }
+
+    .header-rule::after {
+      background: linear-gradient(90deg, var(--cyan-dim), transparent);
+    }
+
+    .rule-diamond {
+      color: var(--gold-dim);
+      font-size: 0.5rem;
+    }
+
+    /* ══════════════════════════════════════════════
+       TOAST
+    ══════════════════════════════════════════════ */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--panel-alt);
+      border: 1px solid var(--cyan-dim);
+      border-radius: 4px;
+      padding: 9px 20px;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      letter-spacing: 1.5px;
+      color: var(--cyan);
+      z-index: 1000;
+      transition: transform 0.4s cubic-bezier(.2,.8,.2,1), opacity 0.4s;
+      opacity: 0;
+      white-space: nowrap;
+    }
+
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* ══════════════════════════════════════════════
+       PANEL
+    ══════════════════════════════════════════════ */
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 24px 26px;
+      margin-bottom: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent 5%, var(--cyan-dim) 40%, var(--gold-dim) 60%, transparent 95%);
+    }
+
+    .panel-title {
+      font-family: var(--head);
+      font-size: 0.58rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 22px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .panel-title .pt-icon {
+      color: var(--gold);
+      font-size: 0.75rem;
+    }
+
+    .panel-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--border), transparent);
+    }
+
+    /* ══════════════════════════════════════════════
+       FORM
+    ══════════════════════════════════════════════ */
+    .field-group {
+      margin-bottom: 20px;
+    }
+
+    .field-group:last-child { margin-bottom: 0; }
+
+    .field-label {
+      display: block;
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 2.5px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    textarea,
+    select {
+      width: 100%;
+      background: rgba(0,0,0,0.45);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-bright);
+      font-family: var(--mono);
+      font-size: 0.86rem;
+      padding: 9px 13px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      caret-color: var(--cyan);
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    input[type="date"]:focus,
+    textarea:focus {
+      border-color: var(--border-hi);
+      box-shadow: 0 0 10px rgba(90,150,255,0.15);
+    }
+
+    textarea {
+      resize: vertical;
+      line-height: 1.65;
+    }
+
+    /* ══════════════════════════════════════════════
+       TOGGLE (mode switch)
+    ══════════════════════════════════════════════ */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .tgl-label {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      transition: color .2s;
+    }
+
+    .tgl-label.active { color: var(--cyan); }
+    .tgl-label.inactive { color: var(--text-dim); }
+
+    .toggle-sw {
+      position: relative;
+      width: 46px;
+      height: 25px;
+      flex-shrink: 0;
+    }
+
+    .toggle-sw input { display: none; }
+
+    .tgl-track {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      cursor: pointer;
+      transition: .3s;
+    }
+
+    .tgl-track::before {
+      content: '';
+      position: absolute;
+      width: 17px; height: 17px;
+      left: 3px; top: 3px;
+      background: var(--text-dim);
+      border-radius: 50%;
+      transition: .3s;
+    }
+
+    .toggle-sw input:checked + .tgl-track {
+      background: rgba(0,160,130,.2);
+      border-color: var(--cyan-dim);
+    }
+
+    .toggle-sw input:checked + .tgl-track::before {
+      transform: translateX(21px);
+      background: var(--cyan);
+      box-shadow: 0 0 6px var(--cyan-glow);
+    }
+
+    /* ══════════════════════════════════════════════
+       COORDINATE GRID
+    ══════════════════════════════════════════════ */
+    .coord-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .coord-axis {
+      display: block;
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+
+    .coord-axis.ax-x { color: #ff7777; text-shadow: 0 0 8px rgba(255,100,100,.4); }
+    .coord-axis.ax-y { color: #77ff99; text-shadow: 0 0 8px rgba(100,255,140,.4); }
+    .coord-axis.ax-z { color: #7799ff; text-shadow: 0 0 8px rgba(100,140,255,.4); }
+
+    /* ══════════════════════════════════════════════
+       PARSE PREVIEW
+    ══════════════════════════════════════════════ */
+    .parse-preview {
+      margin-top: 7px;
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      min-height: 1.3em;
+      letter-spacing: .5px;
+      color: var(--text-dim);
+      transition: color .2s;
+    }
+    .parse-preview.ok  { color: var(--green); }
+    .parse-preview.err { color: var(--red); }
+
+    /* ══════════════════════════════════════════════
+       SEGMENT CONTROL
+    ══════════════════════════════════════════════ */
+    .seg {
+      display: flex;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .seg input[type="radio"] { display: none; }
+
+    .seg label {
+      flex: 1;
+      text-align: center;
+      padding: 9px 6px;
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 0.88rem;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      border-right: 1px solid var(--border);
+      transition: all .2s;
+      margin: 0;
+      display: block;
+    }
+
+    .seg label:last-of-type { border-right: none; }
+
+    .seg input:checked + label {
+      background: rgba(0,229,248,0.12);
+      color: var(--cyan);
+      text-shadow: 0 0 8px var(--cyan-glow);
+    }
+
+    /* ══════════════════════════════════════════════
+       COLOR ROW
+    ══════════════════════════════════════════════ */
+    .color-row {
+      display: flex;
+      align-items: stretch;
+      gap: 10px;
+    }
+
+    .color-row .seg { flex: 1; }
+
+    .color-picker-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .color-picker-wrap span {
+      font-family: var(--mono);
+      font-size: 0.56rem;
+      letter-spacing: 1.5px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    input[type="color"] {
+      width: 42px;
+      height: 32px;
+      padding: 2px 3px;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      display: block;
+    }
+
+    /* ══════════════════════════════════════════════
+       GENERATE BUTTON
+    ══════════════════════════════════════════════ */
+    .btn-gen {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg,
+        rgba(240,180,41,.12) 0%,
+        rgba(0,229,248,.08) 100%);
+      border: 1px solid rgba(240,180,41,.45);
+      border-radius: 5px;
+      color: var(--gold);
+      font-family: var(--head);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all .25s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-gen::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg,
+        rgba(240,180,41,.08),
+        rgba(0,229,248,.06));
+      opacity: 0;
+      transition: opacity .25s;
+    }
+
+    .btn-gen:hover {
+      border-color: var(--gold);
+      box-shadow: 0 0 20px var(--gold-glow), 0 0 40px rgba(0,229,248,.08);
+      color: #ffd060;
+      letter-spacing: 6px;
+    }
+
+    .btn-gen:hover::after { opacity: 1; }
+    .btn-gen:active { transform: scale(.985); }
+
+    /* ══════════════════════════════════════════════
+       OUTPUT AREA
+    ══════════════════════════════════════════════ */
+    .out-wrap {
+      position: relative;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 8px; right: 8px;
+      background: rgba(0,229,248,.1);
+      border: 1px solid var(--cyan-dim);
+      border-radius: 3px;
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 0.63rem;
+      letter-spacing: 2px;
+      padding: 4px 11px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all .2s;
+      z-index: 2;
+    }
+
+    .copy-btn:hover {
+      background: rgba(0,229,248,.22);
+      box-shadow: 0 0 8px var(--cyan-glow);
+    }
+
+    .copy-btn.copied {
+      color: var(--green);
+      border-color: var(--green);
+      background: rgba(61,255,170,.1);
+    }
+
+    textarea.t-gps {
+      font-size: 0.78rem;
+      color: var(--gold);
+      background: rgba(0,0,0,.55);
+      min-height: 210px;
+      padding-right: 70px; /* space for copy button */
+    }
+
+    textarea.t-csv {
+      font-size: 0.74rem;
+      color: var(--text);
+      background: rgba(0,0,0,.5);
+      min-height: 150px;
+      padding-right: 70px;
+    }
+
+    textarea.t-log {
+      min-height: 72px;
+      font-size: 0.68rem;
+      resize: vertical;
+    }
+
+    /* ══════════════════════════════════════════════
+       RAINBOW BORDER PULSE
+    ══════════════════════════════════════════════ */
+    @keyframes rbPulse {
+      0%   { border-color: rgba(255, 60, 60, .60); box-shadow: 0 0 12px rgba(255, 60, 60,.25); }
+      14%  { border-color: rgba(255,160, 40, .60); box-shadow: 0 0 12px rgba(255,160, 40,.25); }
+      28%  { border-color: rgba(255,240, 40, .60); box-shadow: 0 0 12px rgba(255,240, 40,.25); }
+      42%  { border-color: rgba( 50,255, 80, .60); box-shadow: 0 0 12px rgba( 50,255, 80,.25); }
+      57%  { border-color: rgba( 40,180,255, .60); box-shadow: 0 0 12px rgba( 40,180,255,.25); }
+      71%  { border-color: rgba( 80, 80,255, .60); box-shadow: 0 0 12px rgba( 80, 80,255,.25); }
+      85%  { border-color: rgba(160, 40,255, .60); box-shadow: 0 0 12px rgba(160, 40,255,.25); }
+      100% { border-color: rgba(255, 60, 60, .60); box-shadow: 0 0 12px rgba(255, 60, 60,.25); }
+    }
+
+    textarea.t-gps.rb-active {
+      animation: rbPulse 4s linear infinite;
+    }
+
+    /* ══════════════════════════════════════════════
+       STATUS BAR
+    ══════════════════════════════════════════════ */
+    .status-bar {
+      margin-top: 9px;
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      min-height: 1.3em;
+    }
+
+    .status-bar.ok  { color: var(--green); }
+    .status-bar.err { color: var(--red); }
+
+    /* ══════════════════════════════════════════════
+       ACCORDION
+    ══════════════════════════════════════════════ */
+    details.acc {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 18px;
+    }
+
+    details.acc summary {
+      padding: 13px 18px;
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--panel-alt);
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      transition: color .2s, background .2s;
+      user-select: none;
+    }
+
+    details.acc summary::-webkit-details-marker { display: none; }
+    details.acc summary:hover { color: var(--text); background: rgba(10,20,40,.8); }
+    details.acc[open] summary { color: var(--cyan); }
+
+    .acc-arrow {
+      transition: transform .25s;
+      color: var(--text-dim);
+    }
+
+    details.acc[open] .acc-arrow { transform: rotate(180deg); color: var(--cyan); }
+
+    .acc-body {
+      padding: 18px;
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+    }
+
+    .acc-note {
+      font-family: var(--mono);
+      font-size: 0.66rem;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+
+    .acc-note span { color: var(--cyan); }
+
+    /* ══════════════════════════════════════════════
+       DIVIDER / UTIL
+    ══════════════════════════════════════════════ */
+    .section-gap { margin-bottom: 6px; }
+
+    .hidden { display: none !important; }
+
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* ══════════════════════════════════════════════
+       INFO BADGE
+    ══════════════════════════════════════════════ */
+    .info-strip {
+      display: flex;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 22px;
+    }
+
+    .info-cell {
+      flex: 1;
+      padding: 8px 12px;
+      text-align: center;
+      background: rgba(0,0,0,.35);
+      border-right: 1px solid var(--border);
+    }
+
+    .info-cell:last-child { border-right: none; }
+
+    .info-cell .ic-val {
+      font-family: var(--head);
+      font-size: 0.78rem;
+      color: var(--gold);
+      letter-spacing: 1px;
+      display: block;
+    }
+
+    .info-cell .ic-lbl {
+      font-family: var(--mono);
+      font-size: 0.56rem;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      display: block;
+      margin-top: 2px;
+    }
+
+    /* ══════════════════════════════════════════════
+       FOOTER
+    ══════════════════════════════════════════════ */
+    footer {
+      text-align: center;
+      margin-top: 50px;
+      padding: 20px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    footer p {
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+      line-height: 2;
+    }
+
+    footer .f-hi { color: var(--gold-dim); }
+    footer .f-cy { color: var(--cyan-dim); }
+
+    /* ══════════════════════════════════════════════
+       RESPONSIVE
+    ══════════════════════════════════════════════ */
+    @media (max-width: 540px) {
+      .coord-grid { grid-template-columns: 1fr; }
+      .logo-phi { font-size: 3rem; }
+      .logo-scout { font-size: 2rem; letter-spacing: 4px; }
+      .row-2 { grid-template-columns: 1fr; }
+      .row-3 { grid-template-columns: 1fr; }
+    }
+
+    /* ══════════════════════════════════════════════
+       TOOLTIP
+    ══════════════════════════════════════════════ */
+    .tt-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      border: 1px solid var(--gold-dim);
+      color: var(--gold-dim);
+      font-family: var(--mono);
+      font-size: 0.55rem;
+      font-style: normal;
+      line-height: 1;
+      cursor: help;
+      margin-left: 5px;
+      vertical-align: middle;
+      flex-shrink: 0;
+      user-select: none;
+      letter-spacing: 0;
+      font-weight: normal;
+      transition: color .2s, border-color .2s, box-shadow .2s;
+    }
+
+    .tt-icon:hover {
+      color: var(--gold);
+      border-color: var(--gold);
+      box-shadow: 0 0 6px var(--gold-glow);
+    }
+
+    #tt-bubble {
+      position: fixed;
+      z-index: 9999;
+      max-width: 300px;
+      background: var(--panel-alt);
+      border: 1px solid var(--gold-dim);
+      border-radius: 5px;
+      padding: 10px 14px;
+      font-family: var(--body);
+      font-size: 0.84rem;
+      line-height: 1.55;
+      color: var(--text-bright);
+      box-shadow: 0 6px 24px rgba(0,0,0,.6), 0 0 12px rgba(240,180,41,.12);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .15s;
+      word-wrap: break-word;
+    }
+
+    #tt-bubble.visible { opacity: 1; }
+
+    /* ══════════════════════════════════════════════
+       ABOUT BUTTON
+    ══════════════════════════════════════════════ */
+    .about-btn {
+      background: none;
+      border: 1px solid transparent;
+      font-family: var(--head);
+      font-size: 0.65rem;
+      color: var(--gold-dim);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 7px 20px;
+      border-radius: 4px;
+      transition: color .2s, border-color .2s, text-shadow .2s;
+    }
+
+    .about-btn:hover {
+      color: var(--gold);
+      border-color: var(--gold-dim);
+      text-shadow: 0 0 12px var(--gold-glow);
+    }
+
+    .reset-btn {
+      background: none;
+      border: 1px solid transparent;
+      font-family: var(--head);
+      font-size: 0.55rem;
+      color: var(--text-dim);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 7px 14px;
+      border-radius: 4px;
+      transition: color .2s, border-color .2s;
+      opacity: 0.55;
+    }
+
+    .reset-btn:hover {
+      color: var(--red);
+      border-color: var(--red);
+      opacity: 1;
+    }
+
+    /* ── 3D Visualizer nav pill ── */
+    .viz-nav {
+      position: fixed;
+      top: 12px; right: 14px;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+    .viz-nav a {
+      display: inline-block;
+      background: #0a1428;
+      color: var(--cyan);
+      border: 1px solid var(--cyan);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      padding: 5px 13px;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background 0.12s, color 0.12s;
+      opacity: 0.82;
+    }
+    .viz-nav a:hover { background: #1a3060; opacity: 1; }
+
+    /* ══════════════════════════════════════════════
+       ABOUT MODAL
+    ══════════════════════════════════════════════ */
+    .about-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 5, 15, 0.88);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s;
+    }
+
+    .about-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .about-modal {
+      position: relative;
+      background: var(--panel);
+      border: 1px solid var(--gold-dim);
+      border-radius: 8px;
+      padding: 32px 28px 26px;
+      max-width: 580px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 0 50px rgba(0,0,0,.7), 0 0 20px rgba(240,180,41,.07);
+      scrollbar-width: thin;
+      scrollbar-color: var(--gold-dim) transparent;
+    }
+
+    .about-modal::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      border-radius: 8px 8px 0 0;
+      background: linear-gradient(90deg, transparent 5%, var(--gold-dim) 40%, var(--cyan-dim) 60%, transparent 95%);
+    }
+
+    .about-close {
+      position: absolute;
+      top: 12px; right: 14px;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-size: 0.75rem;
+      padding: 3px 9px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-family: var(--mono);
+      transition: color .2s, border-color .2s;
+    }
+
+    .about-close:hover {
+      color: var(--red);
+      border-color: rgba(255,85,85,.5);
+    }
+
+    .about-title {
+      font-family: var(--head);
+      font-size: 1rem;
+      color: var(--gold);
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      text-shadow: 0 0 14px var(--gold-glow);
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .about-section {
+      margin-bottom: 20px;
+    }
+
+    .about-section:last-child { margin-bottom: 0; }
+
+    .about-section h3 {
+      font-family: var(--head);
+      font-size: 0.55rem;
+      letter-spacing: 3.5px;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 8px;
+      text-shadow: 0 0 8px var(--cyan-glow);
+    }
+
+    .about-section p {
+      font-family: var(--body);
+      font-size: 0.92rem;
+      line-height: 1.65;
+      color: var(--text);
+    }
+
+    .about-section em {
+      font-style: italic;
+      color: var(--text-bright);
+    }
+
+    .about-hl { color: var(--gold); }
+    .about-cy { color: var(--cyan); }
+
+    .about-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-family: var(--mono);
+      font-size: 0.7rem;
+    }
+
+    .about-table th {
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 5px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    .about-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid rgba(90,150,255,0.07);
+      color: var(--text);
+    }
+
+    .about-table td:first-child { color: var(--gold); font-size: 0.85rem; }
+    .about-table tr:last-child td { border-bottom: none; }
+
+    /* ══════════════════════════════════════════════
+       MISSION LOG / TRACKER
+    ══════════════════════════════════════════════ */
+    .row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .tracker-row {
+      margin-bottom: 14px;
+    }
+
+    .inline-field-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .inline-field-row .field-label {
+      margin: 0;
+    }
+
+    .inline-toggle-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex: 0 0 auto;
+    }
+
+    input[readonly] {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.7) sepia(0.4) hue-rotate(170deg) brightness(1.2);
+      cursor: pointer;
+    }
+
+    .tracker-btn-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .tracker-btn {
+      flex: 1;
+      min-width: 110px;
+      padding: 9px 10px;
+      background: rgba(0,229,248,.08);
+      border: 1px solid var(--cyan-dim);
+      border-radius: 4px;
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+
+    .tracker-btn:hover {
+      background: rgba(0,229,248,.18);
+      box-shadow: 0 0 8px var(--cyan-glow);
+    }
+
+    .tracker-btn-export {
+      border-color: var(--gold-dim);
+      color: var(--gold-dim);
+      background: rgba(240,180,41,.07);
+    }
+
+    .tracker-btn-export:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+      background: rgba(240,180,41,.14);
+      box-shadow: 0 0 8px var(--gold-glow);
+    }
+
+    .tracker-btn-import {
+      border-color: var(--text-dim);
+      color: var(--text-dim);
+      background: rgba(176,204,240,.05);
+    }
+
+    .tracker-btn-import:hover {
+      border-color: var(--text-bright);
+      color: var(--text-bright);
+      background: rgba(176,204,240,.1);
+    }
+
+    /* ══════════════════════════════════════════════
+       LIGHT MODE
+    ══════════════════════════════════════════════ */
+    body.light-mode {
+      --bg:          #d8e0f0;
+      --panel:       #eaf0ff;
+      --panel-alt:   #dfe7fa;
+      --border:      rgba(50,90,200,0.2);
+      --border-hi:   rgba(30,70,200,0.5);
+      --gold:        #8a6000;
+      --gold-dim:    #6b4c00;
+      --gold-glow:   rgba(138,96,0,0.25);
+      --cyan:        #006080;
+      --cyan-dim:    #004860;
+      --cyan-glow:   rgba(0,96,128,0.22);
+      --text:        #223260;
+      --text-bright: #0d1e44;
+      --text-dim:    #445e90;
+      --green:       #006640;
+      --red:         #b81c1c;
+    }
+    body.light-mode::before { opacity: 0; }
+    body.light-mode::after {
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(180,200,255,.18) 0%, transparent 70%);
+    }
+    body.light-mode input[type="text"],
+    body.light-mode input[type="number"],
+    body.light-mode input[type="date"],
+    body.light-mode textarea,
+    body.light-mode select      { background: rgba(255,255,255,0.82); }
+    body.light-mode input[type="color"]  { background: rgba(255,255,255,0.75); }
+    body.light-mode textarea.t-gps      { background: rgba(255,255,255,.82); color: var(--gold); }
+    body.light-mode textarea.t-csv      { background: rgba(255,255,255,.82); }
+    body.light-mode .info-cell          { background: rgba(255,255,255,.5); }
+    body.light-mode details.acc summary:hover { background: rgba(200,215,255,.8); }
+    body.light-mode .copy-btn           { background: rgba(0,96,128,.1); }
+    body.light-mode .copy-btn:hover     { background: rgba(0,96,128,.22); }
+    body.light-mode .btn-gen {
+      background: linear-gradient(135deg, rgba(138,96,0,.14) 0%, rgba(0,96,128,.09) 100%);
+      border-color: rgba(138,96,0,.5);
+    }
+    body.light-mode .btn-gen:hover {
+      box-shadow: 0 0 20px var(--gold-glow), 0 0 40px rgba(0,96,128,.1);
+    }
+    body.light-mode .tracker-btn              { background: rgba(0,96,128,.08); }
+    body.light-mode .tracker-btn:hover        { background: rgba(0,96,128,.18); }
+    body.light-mode .tracker-btn-export       { background: rgba(138,96,0,.07); }
+    body.light-mode .tracker-btn-export:hover { background: rgba(138,96,0,.16); }
+    body.light-mode .tracker-btn-import       { background: rgba(34,50,96,.05); }
+    body.light-mode .tracker-btn-import:hover { background: rgba(34,50,96,.12); }
+    body.light-mode #toast        { background: var(--panel); border-color: var(--cyan-dim); }
+    body.light-mode .about-overlay { background: rgba(180,195,230,0.88); }
+    body.light-mode .about-modal  { background: var(--panel); border-color: var(--border); }
+    body.light-mode .about-section { border-color: var(--border); }
+    body.light-mode #tt-bubble    { background: var(--panel-alt); border-color: var(--border); color: var(--text); }
+  </style>
+</head>
+
+<body>
+<script>/* anti-FOUC: apply saved theme before first paint */
+(function(){try{var raw=localStorage.getItem('phiscout_theme');var theme=raw?JSON.parse(raw):null;if(theme==='light')document.body.classList.add('light-mode');}catch(_){}})();
+</script>
+<div id="toast"></div>
+
+<!-- 3D Visualizer nav -->
+<nav class="viz-nav"><a href="phi-scout-viz.html" title="Open 3D Visualizer">◆ 3D View →</a></nav>
+
+<div class="wrapper">
+
+  <!-- ═══════════════════════════════════ HEADER -->
+  <header>
+    <div class="logo-wrap">
+      <span class="logo-phi">φ</span>
+      <span class="logo-dash">—</span>
+      <span class="logo-scout">Scout</span>
+    </div>
+    <p class="tagline">Navigate the void with golden precision</p>
+    <div class="header-rule">
+      <span class="rule-diamond">◆</span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════ INFO STRIP -->
+  <div class="info-strip">
+    <div class="info-cell">
+      <span class="ic-val" id="icSearchRadius">3,000 m</span>
+      <span class="ic-lbl">Search Radius</span>
+    </div>
+    <div class="info-cell">
+      <span class="ic-val">137.508°</span>
+      <span class="ic-lbl">Golden Angle</span>
+    </div>
+    <div class="info-cell">
+      <span class="ic-val">φ = 1.618…</span>
+      <span class="ic-lbl">Golden Ratio</span>
+    </div>
+    <div class="info-cell">
+      <span class="ic-val" id="icOrientation">Y-Axis Up (CW)</span>
+      <span class="ic-lbl">Orientation</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ INPUT PANEL -->
+  <div class="panel">
+    <div class="panel-title"><span class="pt-icon">⊹</span> Mission Parameters <span class="tt-icon" data-tip="Enter the center coordinates of your Space Engineers search contract. Open the GPS panel (K key) in-game to find the contract marker position.">ⓘ</span></div>
+
+    <!-- ─── Coord Mode Toggle ─── -->
+    <div class="field-group">
+      <div class="toggle-row">
+        <span class="tgl-label" id="lbl-manual">Manual XYZ</span>
+        <label class="toggle-sw">
+          <input type="checkbox" id="coordMode">
+          <span class="tgl-track"></span>
+        </label>
+        <span class="tgl-label" id="lbl-gps">Paste GPS</span>
+          <span class="tt-icon" data-tip="Manual XYZ: type the contract's X/Y/Z directly. Paste GPS: copy a GPS:Name:X:Y:Z: string from Space Engineers (GPS panel → right-click → Copy) to auto-fill coordinates.">ⓘ</span>
+      </div>
+
+      <!-- Manual XYZ entry -->
+      <div id="manualCoords">
+        <div class="coord-grid">
+          <div>
+            <span class="coord-axis ax-x">X</span>
+            <input type="number" id="cx" value="0" step="0.1" placeholder="0">
+          </div>
+          <div>
+            <span class="coord-axis ax-y">Y ↑</span>
+            <input type="number" id="cy" value="0" step="0.1" placeholder="0">
+          </div>
+          <div>
+            <span class="coord-axis ax-z">Z</span>
+            <input type="number" id="cz" value="0" step="0.1" placeholder="0">
+          </div>
+        </div>
+      </div>
+
+      <!-- GPS paste entry -->
+      <div id="gpsCoords" class="hidden">
+        <input type="text" id="gpsInput"
+          placeholder="GPS:Contract Name:X:Y:Z:#RRGGBB:">
+        <div class="parse-preview" id="parsePreview">— paste a GPS string above to auto-parse coordinates —</div>
+      </div>
+    </div>
+
+    <!-- ─── Search Points ─── -->
+    <div class="field-group">
+      <span class="field-label">Search Points (N) <span class="tt-icon" data-tip="How many waypoints to place on the sphere. More points = smaller gaps. 12 is the recommended starting point for most contracts. Lean (9) is the mathematical minimum for a 3 km sphere with 2 km detection — thin coverage with small gaps possible.">ⓘ</span></span>
+      <div class="seg">
+        <input type="radio" name="npts" id="n9" value="9">
+        <label for="n9">9 · Lean</label>
+        <input type="radio" name="npts" id="n12" value="12" checked>
+        <label for="n12">12 · Fast</label>
+        <input type="radio" name="npts" id="n20" value="20">
+        <label for="n20">20 · Balanced</label>
+        <input type="radio" name="npts" id="n32" value="32">
+        <label for="n32">32 · Thorough</label>
+      </div>
+    </div>
+
+    <!-- ─── Waypoint Prefix ─── -->
+    <div class="field-group">
+      <span class="field-label">Waypoint Prefix <span class="tt-icon" data-tip="Each waypoint is named PREFIX-1, PREFIX-2, etc. Keep it short — GPS names show on your HUD and can truncate in tight spaces.">ⓘ</span></span>
+      <input type="text" id="wpPrefix" value="SEARCH-" maxlength="32"
+        placeholder="SEARCH-">
+    </div>
+
+    <!-- ─── Color Mode ─── -->
+    <div class="field-group">
+      <span class="field-label">Waypoint Color <span class="tt-icon" data-tip="Rainbow Road cycles colors red→violet so you can visually track visited waypoints. Single lets you pick one fixed color for all points.">ⓘ</span></span>
+      <div class="color-row">
+        <div class="seg">
+          <input type="radio" name="colorMode" id="cRainbow" value="rainbow" checked>
+          <label for="cRainbow">🌈 Rainbow Road</label>
+          <input type="radio" name="colorMode" id="cSingle" value="single">
+          <label for="cSingle">⬤ Single</label>
+        </div>
+        <div class="color-picker-wrap">
+          <span>Color</span>
+          <input type="color" id="singleColor" value="#FF00FF" title="Single waypoint color">
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Generate ─── -->
+    <button class="btn-gen" id="generateBtn">⟡ &nbsp; GENERATE WAYPOINTS &nbsp; ⟡</button>
+  </div>
+
+  <!-- ═══════════════════════════════════ OUTPUT PANEL -->
+  <details class="acc" id="gpsAccordion">
+    <summary>
+      <span>▸ &nbsp; GPS Waypoints &nbsp;·&nbsp; Space Engineers &nbsp;<span class="tt-icon" data-tip="Paste all these lines into Space Engineers via the GPS panel (K key). Select all, copy, then use GPS → Import. Each line becomes a named waypoint on your HUD.">ⓘ</span></span>
+      <span class="acc-arrow">▾</span>
+    </summary>
+    <div class="acc-body">
+      <div class="out-wrap">
+        <button class="copy-btn" id="copyGps">Copy</button>
+        <textarea class="t-gps" id="gpsOutput" readonly
+          placeholder="// Generated GPS waypoints will appear here...&#10;// Configure parameters above and tap Generate.&#10;&#10;// Paste directly into Space Engineers GPS panel."></textarea>
+      </div>
+      <div class="status-bar" id="genStatus">— no waypoints generated yet —</div>
+    </div>
+  </details>
+
+  <!-- ═══════════════════════════════════ CSV ACCORDION -->
+  <details class="acc" id="csvAccordion">
+    <summary>
+      <span>▸ &nbsp; CSV Export &nbsp;·&nbsp; Python / Matplotlib 3D Visualization &nbsp;<span class="tt-icon" data-tip="Spreadsheet-format data for external tools. Import into Python/matplotlib to render the 3D sphere and visually verify coverage before flying.">ⓘ</span></span>
+      <span class="acc-arrow">▾</span>
+    </summary>
+    <div class="acc-body">
+      <p class="acc-note">
+        Columns: <span>Point#, Name, X, Y, Z, HexColor</span>
+        &nbsp;·&nbsp; Use with matplotlib's <span>Axes3D</span> scatter plot for visual inspection.
+      </p>
+      <div class="out-wrap">
+        <button class="copy-btn" id="copyCsv">Copy</button>
+        <textarea class="t-csv" id="csvOutput" readonly
+          placeholder="// CSV will appear here after generating waypoints...&#10;// Point#,Name,X,Y,Z,HexColor"></textarea>
+      </div>
+    </div>
+  </details>
+
+  <!-- ═══════════════════════════════════ ADVANCED SETTINGS / MISSION LOG -->
+  <details class="acc" id="advancedAccordion">
+    <summary>
+      <span>▸ &nbsp; Advanced Settings &nbsp;·&nbsp; Mission Log <span class="tt-icon" data-tip="Log each completed mission as a row in a running CSV. Use &lsquo;Add to Log&rsquo; after each mission. Export Log CSV to open in any spreadsheet. Export All saves every app setting + the full log; Import All restores everything.">ⓘ</span></span>
+      <span class="acc-arrow">▾</span>
+    </summary>
+    <div class="acc-body">
+      <!-- ─── Sphere settings ───────────────────────────────────────── -->
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--border)">
+        <div style="flex:1;min-width:130px">
+          <span class="field-label">Sphere Radius (m) <span class="tt-icon" data-tip="Radius of the search sphere in metres. Default 3000 m matches most Space Engineers contracts. Change if your contract specifies a different search area size.">ⓘ</span></span>
+          <input type="number" id="sphereRadius" min="100" max="500000" step="100" value="3000" placeholder="3000">
+        </div>
+        <div style="flex:1;min-width:130px">
+          <div class="inline-field-row" style="margin-bottom:0">
+            <span class="field-label" style="margin:0">Spiral Direction <span class="tt-icon" data-tip="Direction the Fibonacci spiral winds around the sphere. CW and CCW produce mirror-image point distributions &mdash; identical coverage, opposite handedness. Useful if your approach path favours one orbit direction.">ⓘ</span></span>
+            <div class="inline-toggle-row">
+              <span class="tgl-label active" id="lblSpinCW">CW</span>
+              <label class="toggle-sw">
+                <input type="checkbox" id="spinDir">
+                <span class="tgl-track"></span>
+              </label>
+              <span class="tgl-label inactive" id="lblSpinCCW">CCW</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Theme toggle ────────────────────────────────────────── -->
+      <div style="display:flex;align-items:center;gap:14px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--border)">
+        <span class="field-label" style="margin:0;flex-shrink:0">Theme</span>
+        <div class="toggle-row" style="margin:0">
+          <span class="tgl-label" id="lblThemeDark">Dark</span>
+          <label class="toggle-sw">
+            <input type="checkbox" id="themeToggle">
+            <span class="tgl-track"></span>
+          </label>
+          <span class="tgl-label" id="lblThemeLight">Light</span>
+        </div>
+      </div>
+
+      <p class="acc-note">
+        Fields marked <span>✶</span> auto-fill on Generate.
+        Fill in times &amp; target, then click <span>Add to Log</span> to append a row.
+      </p>
+
+      <!-- Current mission entry -->
+      <div class="row-3 tracker-row">
+        <div>
+          <span class="field-label">Waypoints (N) <span class="tt-icon" data-tip="Auto-filled from the last Generate. ✶">ⓘ</span></span>
+          <input type="text" id="logN" readonly placeholder="✶ generate first">
+        </div>
+        <div>
+          <span class="field-label">Mission Name <span class="tt-icon" data-tip="Defaults to your waypoint prefix. Rename freely — each log row keeps its own name.">ⓘ</span></span>
+          <input type="text" id="logName" placeholder="SEARCH-" maxlength="64">
+        </div>
+        <div>
+          <span class="field-label">Date <span class="tt-icon" data-tip="Auto-filled to today on Generate. Edit as needed. ✶">ⓘ</span></span>
+          <input type="date" id="logDate">
+        </div>
+      </div>
+
+      <div class="row-2 tracker-row">
+        <div>
+          <span class="field-label">Total Mission Time (min) <span class="tt-icon" data-tip="Game-specified time limit for the contract, in minutes.">ⓘ</span></span>
+          <input type="number" id="logTotalTime" min="0" step="1" placeholder="e.g. 45">
+        </div>
+        <div>
+          <div class="inline-field-row">
+            <span class="field-label">Time Entry Mode <span class="tt-icon" data-tip="Enter the time for this run. Toggle &lsquo;Used&rsquo; (time you actually spent searching) vs &lsquo;Left&rsquo; (time remaining on the contract &mdash; e.g. you only saw &lsquo;16 mins left&rsquo;). Set a Total Mission Time and the other value is computed automatically.">ⓘ</span></span>
+            <div class="inline-toggle-row">
+              <span class="tgl-label active" id="lblLogTimeUsed">Used</span>
+              <label class="toggle-sw">
+                <input type="checkbox" id="logTimeModeToggle">
+                <span class="tgl-track"></span>
+              </label>
+              <span class="tgl-label inactive" id="lblLogTimeRemaining">Left</span>
+            </div>
+          </div>
+          <input type="number" id="logTimeUsed" min="0" step="1" placeholder="e.g. 23 used">
+        </div>
+      </div>
+
+      <div class="tracker-row">
+        <span class="field-label">Target Found At <span class="tt-icon" data-tip="Waypoint nearest to where the target was found. Populates after Generate. ✶">ⓘ</span></span>
+        <select id="logClosest">
+          <option value="">— generate waypoints to populate list —</option>
+        </select>
+      </div>
+
+      <!-- Add / Clear row -->
+      <div class="tracker-btn-row" style="margin-bottom:18px">
+        <button class="tracker-btn" id="logAdd">✚ &nbsp; Add to Log</button>
+        <button class="tracker-btn tracker-btn-import" id="logClearRow">&#x2715; &nbsp; Clear Fields</button>
+      </div>
+
+      <!-- Running log CSV -->
+      <div class="tracker-row">
+        <span class="field-label">Running Mission Log (CSV) <span class="tt-icon" data-tip="Every &lsquo;Add to Log&rsquo; appends a row here, including the search center point and both used/remaining time values when they can be derived.">ⓘ</span></span>
+        <div class="out-wrap">
+          <button class="copy-btn" id="logCopy">Copy</button>
+          <textarea class="t-csv t-log" id="logOutput" readonly
+            placeholder="// Click &lsquo;Add to Log&rsquo; to record a completed mission...&#10;// Mission,Date,Waypoints,Radius_m,CenterX,CenterY,CenterZ,TotalTime_min,TimeUsed_min,TimeRemaining_min,TimeEntryMode,ClosestWaypoint"></textarea>
+        </div>
+      </div>
+
+      <!-- Export / Import -->
+      <div class="tracker-btn-row">
+        <button class="tracker-btn tracker-btn-export" id="logExportCsv">⬇ &nbsp; Export Log</button>
+        <button class="tracker-btn tracker-btn-export" id="logExportAll">⬇ &nbsp; Export All</button>
+        <button class="tracker-btn tracker-btn-import" id="logImportAll">⬆ &nbsp; Import All</button>
+        <input type="file" id="logImportFile" accept=".json" style="display:none">
+      </div>
+      <p class="acc-note" style="margin-top:10px;font-size:0.62rem;opacity:0.7">
+        <span>Export Log CSV</span> — just the mission rows &nbsp;·&nbsp;
+        <span>Export All</span> / <span>Import All</span> — full snapshot: coordinates, waypoints, colors, prefix, <em>and</em> the entire log.
+      </p>
+      <div style="margin-top:16px;border-top:1px solid rgba(176,204,240,0.08);padding-top:14px;text-align:right">
+        <button class="reset-btn" id="resetBtn">↺ &nbsp; Reset All Settings</button>
+      </div>
+    </div>
+  </details>
+
+  <!-- ═══════════════════════════════════ FOOTER -->
+  <footer>
+    <button class="about-btn" id="aboutBtn">ⓘ &nbsp; About φ-Scout</button>
+  </footer>
+  <!-- ═══════════════════════════════════ ABOUT MODAL -->
+  <div class="about-overlay" id="aboutOverlay" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+    <div class="about-modal">
+      <button class="about-close" id="aboutClose" aria-label="Close">✕</button>
+      <div class="about-title" id="aboutTitle">φ &thinsp;—&thinsp; Scout</div>
+
+      <div class="about-section">
+        <h3>What is φ-Scout?</h3>
+        <p>Space Engineers search contracts give you a <span class="about-hl">center point and a
+        radius</span> — the target is somewhere on or inside that sphere. φ-Scout generates a set
+        of GPS waypoints <span class="about-hl">evenly distributed over that sphere surface</span>
+        so you can systematically sweep every direction without doubling back or leaving large
+        gaps. Paste the generated GPS block directly into the game's GPS panel and fly each
+        point in order.</p>
+      </div>
+
+      <div class="about-section">
+        <h3>The Fibonacci Sphere</h3>
+        <p>The waypoints are placed using the <span class="about-hl">Fibonacci Sphere</span>
+        algorithm, which spaces points via the
+        <span class="about-cy">golden angle (137.5°)</span>. Because 137.5° is mathematically
+        irrational, no two points ever land in the same place — the result is the most
+        even possible spread across the sphere with <span class="about-hl">zero pole
+        clustering</span>. It's the same pattern sunflowers and pinecones use in nature.</p>
+      </div>
+
+      <div class="about-section">
+        <h3>How to Use It</h3>
+        <p>
+          1. Enter the contract center coordinates (paste the GPS string or type X / Y / Z
+          manually).<br>
+          2. Choose a point count and hit <span class="about-hl">Generate Waypoints</span>.<br>
+          3. Copy the GPS block and import it into Space Engineers
+          (<em>K key → GPS → Import from clipboard</em>).<br>
+          4. Fly to each waypoint in sequence — your antenna will ping the target if it
+          falls within detection range of that stop.
+        </p>
+      </div>
+
+      <div class="about-section">
+        <h3>Coverage Guide</h3>
+        <table class="about-table">
+          <thead><tr><th>Points (N)</th><th>Label</th><th>Best for</th></tr></thead>
+          <tbody>
+            <tr><td>9</td><td>Lean</td><td>Mathematical minimum for 3 km sphere / 2 km antenna — max gap ≈ 2,000 m; thin coverage</td></tr>
+            <tr><td>12</td><td>Fast <em>(default)</em></td><td>Solid first pass for most 3 km contracts</td></tr>
+            <tr><td>20</td><td>Balanced</td><td>Better coverage for high-value or time-flexible searches</td></tr>
+            <tr><td>32</td><td>Thorough</td><td>Near-guaranteed — use when you cannot afford a miss</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="about-section">
+        <h3>Tips</h3>
+        <p>
+          • <span class="about-hl">Orient Y-axis up</span> — align it with planet gravity
+          or your ship's vertical axis and the waypoints form clean latitude rings that are
+          easy to fly in order.<br>
+          • Reach each waypoint <span class="about-hl">at the stated radius</span>, not
+          inside it — the sphere surface is where the gaps between stops are smallest.<br>
+          • Start with <span class="about-hl">12 points</span>. If nothing is found,
+          re-run with 20 or 32 before widening the search area.<br>
+          • The <span class="about-cy">Lean (9-point)</span> option is the mathematical minimum
+          for a 3 km sphere with 2 km detection (max gap ≈ 2,000 m). It's a fast first pass —
+          if the target isn't detected, step up to 12 or higher.
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /wrapper -->
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   CONSTANTS
+══════════════════════════════════════════════════════════════ */
+const PHI          = (1 + Math.sqrt(5)) / 2;          // 1.6180339887...
+const GOLDEN_ANGLE = 2 * Math.PI / (PHI * PHI);       // ≈ 2.39996 rad = 137.508°
+const SPHERE_R     = 3000;                              // metres
+
+/* ══════════════════════════════════════════════════════════════
+   LOCAL STORAGE HELPERS
+══════════════════════════════════════════════════════════════ */
+const LS = {
+  k:    key => 'phiscout_' + key,
+  save: (key, val) => { try { localStorage.setItem(LS.k(key), JSON.stringify(val)); } catch (_) {} },
+  load: (key, def) => {
+    try {
+      const raw = localStorage.getItem(LS.k(key));
+      return raw !== null ? JSON.parse(raw) : def;
+    } catch (_) { return def; }
+  }
+};
+
+/* ══════════════════════════════════════════════════════════════
+   DOM REFS
+══════════════════════════════════════════════════════════════ */
+const $  = id => document.getElementById(id);
+const el = {
+  coordMode:    $('coordMode'),
+  manualCoords: $('manualCoords'),
+  gpsCoords:    $('gpsCoords'),
+  gpsInput:     $('gpsInput'),
+  parsePreview: $('parsePreview'),
+  cx:           $('cx'),
+  cy:           $('cy'),
+  cz:           $('cz'),
+  wpPrefix:     $('wpPrefix'),
+  gpsOutput:    $('gpsOutput'),
+  csvOutput:    $('csvOutput'),
+  genStatus:    $('genStatus'),
+  copyGps:      $('copyGps'),
+  copyCsv:      $('copyCsv'),
+  generateBtn:  $('generateBtn'),
+  singleColor:  $('singleColor'),
+  toast:        $('toast'),
+  icSearchRadius: $('icSearchRadius'),
+  icOrientation:  $('icOrientation'),
+  lblManual:    $('lbl-manual'),
+  lblGps:       $('lbl-gps'),
+  themeToggle:  $('themeToggle'),
+  logTimeModeToggle: $('logTimeModeToggle'),
+  lblLogTimeUsed: $('lblLogTimeUsed'),
+  lblLogTimeRemaining: $('lblLogTimeRemaining'),
+  sphereRadius: $('sphereRadius'),
+  spinDir:      $('spinDir'),
+  lblSpinCW:    $('lblSpinCW'),
+  lblSpinCCW:   $('lblSpinCCW'),
+  lblThemeDark:  $('lblThemeDark'),
+  lblThemeLight: $('lblThemeLight'),
+  logN:         $('logN'),
+  logName:      $('logName'),
+  logDate:      $('logDate'),
+  logTotalTime: $('logTotalTime'),
+  logTimeUsed:  $('logTimeUsed'),
+  logClosest:   $('logClosest'),
+  logOutput:    $('logOutput'),
+};
+
+/* ══════════════════════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════════════════════ */
+let toastTimer = null;
+function showToast(msg) {
+  el.toast.textContent = msg;
+  el.toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.toast.classList.remove('show'), 2600);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   COLOR UTILITIES
+══════════════════════════════════════════════════════════════ */
+/**
+ * HSL (h: 0-360, s: 0-100, l: 0-100) → RRGGBB uppercase hex string
+ */
+function hslToRGBHex(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const c = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * c).toString(16).padStart(2, '0').toUpperCase();
+  };
+  return f(0) + f(8) + f(4); // RRGGBB
+}
+
+/**
+ * ROYGBIV rainbow — returns SE-format color #FFRRGGBB
+ * hue sweeps 0°(red) → 270°(violet) across N points
+ */
+function rainbowColor(i, N) {
+  const hue = N <= 1 ? 0 : (i / (N - 1)) * 270;
+  return '#' + hslToRGBHex(hue, 100, 50);
+}
+
+/**
+ * HTML color picker #RRGGBB → SE #FFRRGGBB
+ */
+function pickerToSE(hex) {
+  return hex.toUpperCase();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FIBONACCI SPHERE
+══════════════════════════════════════════════════════════════ */
+/**
+ * Generate N points uniformly distributed on a sphere of radius
+ * SPHERE_R centred at (cx, cy, cz), Y-axis as vertical pole axis.
+ */
+function fibonacciSphere(cx, cy, cz, N, R, spin) {
+  const radius = (R && R > 0) ? R : SPHERE_R;
+  const dir    = spin === -1 ? -1 : 1;
+  const pts = [];
+  for (let i = 0; i < N; i++) {
+    const t     = N > 1 ? i / (N - 1) : 0.5;
+    const yN    = 1 - 2 * t;                              // +1 (north) → -1 (south)
+    const rN    = Math.sqrt(Math.max(0, 1 - yN * yN));    // radius at this latitude
+    const theta = i * GOLDEN_ANGLE * dir;                  // golden angle spiral
+    const xN    = rN * Math.cos(theta);
+    const zN    = rN * Math.sin(theta);
+    pts.push({
+      idx: i + 1,
+      x:   cx + xN * radius,
+      y:   cy + yN * radius,
+      z:   cz + zN * radius,
+    });
+  }
+  return pts;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   GPS PARSER
+══════════════════════════════════════════════════════════════ */
+/**
+ * Parse a Space Engineers GPS string.
+ * Format: GPS:Name:X:Y:Z:#RRGGBB:
+ * Returns { ok, x, y, z } or { ok: false }
+ */
+function parseGPS(raw) {
+  const str   = raw.trim();
+  const parts = str.split(':');
+  if (parts.length >= 5 && parts[0].trim().toUpperCase() === 'GPS') {
+    const x = parseFloat(parts[2]);
+    const y = parseFloat(parts[3]);
+    const z = parseFloat(parts[4]);
+    if (!isNaN(x) && !isNaN(y) && !isNaN(z)) {
+      return { ok: true, x, y, z };
+    }
+  }
+  return { ok: false };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   GENERATE
+══════════════════════════════════════════════════════════════ */
+function generate() {
+  // 1. Resolve center coordinates
+  let cx, cy, cz;
+
+  if (el.coordMode.checked) {
+    // GPS paste mode
+    const result = parseGPS(el.gpsInput.value);
+    if (!result.ok) {
+      el.genStatus.textContent = '✗ No valid GPS string — switch to Manual or paste a valid GPS.';
+      el.genStatus.className = 'status-bar err';
+      return;
+    }
+    cx = result.x; cy = result.y; cz = result.z;
+  } else {
+    cx = parseFloat(el.cx.value) || 0;
+    cy = parseFloat(el.cy.value) || 0;
+    cz = parseFloat(el.cz.value) || 0;
+  }
+
+  // 2. Parameters
+  const N          = parseInt(document.querySelector('input[name="npts"]:checked').value);
+  const prefix     = el.wpPrefix.value.trim() || 'SEARCH-';
+  const isRainbow  = document.querySelector('input[name="colorMode"]:checked').value === 'rainbow';
+  const R          = parseFloat(el.sphereRadius.value) || SPHERE_R;
+  const spin       = el.spinDir.checked ? -1 : 1;
+  const pts        = fibonacciSphere(cx, cy, cz, N, R, spin);
+
+  // 3. Build GPS output
+  const gpsLines = pts.map((p, i) => {
+    const name  = prefix + String(p.idx).padStart(2, '0');
+    const color = isRainbow ? rainbowColor(i, N) : pickerToSE(el.singleColor.value);
+    return `GPS:${name}:${p.x.toFixed(2)}:${p.y.toFixed(2)}:${p.z.toFixed(2)}:${color}:`;
+  });
+
+  // 4. Build CSV output
+  const csvLines = ['Point#,Name,X,Y,Z,HexColor'];
+  pts.forEach((p, i) => {
+    const name  = prefix + String(p.idx).padStart(2, '0');
+    const color = isRainbow ? rainbowColor(i, N) : pickerToSE(el.singleColor.value);
+    csvLines.push(`${p.idx},${name},${p.x.toFixed(4)},${p.y.toFixed(4)},${p.z.toFixed(4)},${color}`);
+  });
+
+  const gpsText = gpsLines.join('\n');
+  const csvText = csvLines.join('\n');
+
+  // 5. Populate outputs
+  el.gpsOutput.value = gpsText;
+  el.csvOutput.value = csvText;
+  el.gpsOutput.classList.add('rb-active');
+  $('gpsAccordion').open = true;
+
+  // 6. Status
+  const statusMsg =
+    `✓  ${N} waypoints generated  ·  Center (${cx.toFixed(1)}, ${cy.toFixed(1)}, ${cz.toFixed(1)})  ·  Radius 3,000 m`;
+  el.genStatus.textContent = statusMsg;
+  el.genStatus.className = 'status-bar ok';
+
+  // 7. Persist
+  LS.save('gpsOutput', gpsText);
+  LS.save('csvOutput', csvText);
+  LS.save('genStatus', statusMsg);
+
+  showToast(`⟡  ${N} waypoints generated`);
+
+  // 8. Populate mission log
+  el.logN.value = N;
+  if (!el.logName.value) el.logName.value = prefix;
+  if (!el.logDate.value) el.logDate.value = new Date().toISOString().split('T')[0];
+  const prevClosest = el.logClosest.value;
+  el.logClosest.innerHTML = '<option value="">— not found / not tracked —</option>';
+  pts.forEach(p => {
+    const name = prefix + String(p.idx).padStart(2, '0');
+    const opt  = document.createElement('option');
+    opt.value  = name;
+    opt.textContent = name;
+    el.logClosest.appendChild(opt);
+  });
+  if (prevClosest) el.logClosest.value = prevClosest;
+  if (typeof updateLogPreview === 'function') updateLogPreview();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   COPY BUTTONS
+══════════════════════════════════════════════════════════════ */
+function setupCopy(btn, textarea) {
+  btn.addEventListener('click', () => {
+    if (!textarea.value) return;
+    navigator.clipboard.writeText(textarea.value).then(() => {
+      btn.textContent = '✓ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
+    }).catch(() => {
+      textarea.select();
+      document.execCommand('copy');
+      btn.textContent = '✓ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
+    });
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   COORD MODE UI
+══════════════════════════════════════════════════════════════ */
+function applyCoordMode(gpsMode) {
+  if (gpsMode) {
+    el.manualCoords.classList.add('hidden');
+    el.gpsCoords.classList.remove('hidden');
+    el.lblManual.classList.replace('active', 'inactive');
+    el.lblGps.classList.replace('inactive', 'active');
+  } else {
+    el.manualCoords.classList.remove('hidden');
+    el.gpsCoords.classList.add('hidden');
+    el.lblManual.classList.replace('inactive', 'active');
+    el.lblGps.classList.replace('active', 'inactive');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   GPS INPUT HANDLER
+══════════════════════════════════════════════════════════════ */
+function handleGPSChange() {
+  const val    = el.gpsInput.value;
+  const result = parseGPS(val);
+
+  if (!val.trim()) {
+    el.parsePreview.textContent = '— paste a GPS string above to auto-parse coordinates —';
+    el.parsePreview.className = 'parse-preview';
+    return;
+  }
+
+  if (result.ok) {
+    el.parsePreview.textContent =
+      `✓  Parsed  ·  X: ${result.x.toFixed(2)}   Y: ${result.y.toFixed(2)}   Z: ${result.z.toFixed(2)}`;
+    el.parsePreview.className = 'parse-preview ok';
+  } else {
+    el.parsePreview.textContent = '✗  Could not parse — expected GPS:Name:X:Y:Z:#Color:';
+    el.parsePreview.className = 'parse-preview err';
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RESTORE FROM LOCAL STORAGE
+══════════════════════════════════════════════════════════════ */
+function restoreState() {
+  let didRestore = false;
+
+  // Coord mode
+  const savedMode = LS.load('coordMode', false);
+  el.coordMode.checked = savedMode;
+  applyCoordMode(savedMode);
+
+  // Manual XYZ
+  const savedCx = LS.load('cx', null);
+  const savedCy = LS.load('cy', null);
+  const savedCz = LS.load('cz', null);
+  if (savedCx !== null) { el.cx.value = savedCx; didRestore = true; }
+  if (savedCy !== null)   el.cy.value = savedCy;
+  if (savedCz !== null)   el.cz.value = savedCz;
+
+  // GPS input
+  const savedGpsIn = LS.load('gpsInput', '');
+  if (savedGpsIn) {
+    el.gpsInput.value = savedGpsIn;
+    handleGPSChange();
+    didRestore = true;
+  }
+
+  // Point count
+  const savedN = LS.load('npts', '12');
+  const nRadio = document.querySelector(`input[name="npts"][value="${savedN}"]`);
+  if (nRadio) nRadio.checked = true;
+
+  // Prefix
+  const savedPfx = LS.load('wpPrefix', null);
+  if (savedPfx !== null) el.wpPrefix.value = savedPfx;
+
+  // Color mode
+  const savedCM = LS.load('colorMode', 'rainbow');
+  const cmRadio = document.querySelector(`input[name="colorMode"][value="${savedCM}"]`);
+  if (cmRadio) cmRadio.checked = true;
+
+  // Single color
+  const savedSC = LS.load('singleColor', '#FF00FF');
+  el.singleColor.value = savedSC;
+
+  // Sphere radius
+  const savedRadius = LS.load('sphereRadius', '3000');
+  el.sphereRadius.value = savedRadius;
+  el.icSearchRadius.textContent = (parseFloat(savedRadius) || SPHERE_R).toLocaleString() + ' m';
+
+  // Spin direction
+  const savedSpin = LS.load('spinDir', false);
+  el.spinDir.checked = savedSpin;
+  el.lblSpinCW.classList.toggle('active',   !savedSpin);
+  el.lblSpinCW.classList.toggle('inactive',  savedSpin);
+  el.lblSpinCCW.classList.toggle('active',   savedSpin);
+  el.lblSpinCCW.classList.toggle('inactive', !savedSpin);
+  el.icOrientation.textContent = 'Y-Axis Up (' + (savedSpin ? 'CCW' : 'CW') + ')';
+
+  // Outputs
+  const savedGpsOut = LS.load('gpsOutput', '');
+  const savedCsvOut = LS.load('csvOutput', '');
+  const savedStatus = LS.load('genStatus', '');
+
+  if (savedGpsOut) {
+    el.gpsOutput.value = savedGpsOut;
+    el.gpsOutput.classList.add('rb-active');
+    $('gpsAccordion').open = true;
+    didRestore = true;
+  }
+  if (savedCsvOut) el.csvOutput.value = savedCsvOut;
+  if (savedStatus) {
+    el.genStatus.textContent = savedStatus;
+    el.genStatus.className = 'status-bar ok';
+  }
+
+  if (didRestore) {
+    setTimeout(() => showToast('⟡  Session restored from local storage'), 600);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EVENT LISTENERS
+══════════════════════════════════════════════════════════════ */
+
+// Coord mode toggle
+el.coordMode.addEventListener('change', () => {
+  const v = el.coordMode.checked;
+  applyCoordMode(v);
+  LS.save('coordMode', v);
+  showToast('⟡  Coord mode: ' + (v ? 'GPS paste' : 'Manual entry'));
+});
+
+// Manual coords
+[el.cx, el.cy, el.cz].forEach((inp, i) => {
+  inp.addEventListener('input', () => LS.save(['cx','cy','cz'][i], inp.value));
+  inp.addEventListener('change', () =>
+    showToast('⟡  Center: ' + [el.cx.value||'0', el.cy.value||'0', el.cz.value||'0'].join(', '))
+  );
+});
+
+// GPS input
+el.gpsInput.addEventListener('input', () => {
+  LS.save('gpsInput', el.gpsInput.value);
+  handleGPSChange();
+});
+
+el.gpsInput.addEventListener('paste', () => {
+  // Tiny delay to let paste populate the field
+  setTimeout(() => {
+    LS.save('gpsInput', el.gpsInput.value);
+    handleGPSChange();
+    if (el.gpsInput.value.trim()) showToast('⟡  GPS input saved');
+  }, 10);
+});
+el.gpsInput.addEventListener('change', () => showToast('⟡  GPS input saved'));
+
+// Prefix
+el.wpPrefix.addEventListener('input', () => LS.save('wpPrefix', el.wpPrefix.value));
+el.wpPrefix.addEventListener('change', () =>
+  showToast('⟡  Prefix: "' + (el.wpPrefix.value.trim() || 'SEARCH-') + '"')
+);
+
+// Point count
+document.querySelectorAll('input[name="npts"]').forEach(r =>
+  r.addEventListener('change', () => {
+    LS.save('npts', r.value);
+    const nLabels = {'9':'9 · Lean','12':'12 · Fast','20':'20 · Balanced','32':'32 · Thorough'};
+    showToast('⟡  Search points: ' + (nLabels[r.value] || r.value));
+  })
+);
+
+// Color mode
+document.querySelectorAll('input[name="colorMode"]').forEach(r =>
+  r.addEventListener('change', () => {
+    LS.save('colorMode', r.value);
+    showToast('⟡  Color mode: ' + (r.value === 'rainbow' ? 'Rainbow' : 'Single color'));
+  })
+);
+
+// Single color
+el.singleColor.addEventListener('input', () => LS.save('singleColor', el.singleColor.value));
+el.singleColor.addEventListener('change', () => showToast('⟡  Waypoint color: ' + el.singleColor.value));
+
+// Sphere radius — live card update on every keystroke, toast on commit (blur/enter)
+el.sphereRadius.addEventListener('input', () => {
+  const r = parseFloat(el.sphereRadius.value) || SPHERE_R;
+  LS.save('sphereRadius', el.sphereRadius.value);
+  el.icSearchRadius.textContent = r.toLocaleString() + ' m';
+});
+el.sphereRadius.addEventListener('change', () => {
+  const r = parseFloat(el.sphereRadius.value) || SPHERE_R;
+  showToast('⟡  Search radius set to ' + r.toLocaleString() + ' m');
+});
+
+// Spin direction
+el.spinDir.addEventListener('change', () => {
+  const ccw = el.spinDir.checked;
+  LS.save('spinDir', ccw);
+  el.lblSpinCW.classList.toggle('active',   !ccw);
+  el.lblSpinCW.classList.toggle('inactive',  ccw);
+  el.lblSpinCCW.classList.toggle('active',   ccw);
+  el.lblSpinCCW.classList.toggle('inactive', !ccw);
+  el.icOrientation.textContent = 'Y-Axis Up (' + (ccw ? 'CCW' : 'CW') + ')';
+  showToast('⟡  Spiral direction: ' + (ccw ? 'CCW' : 'CW'));
+});
+
+// Generate button
+el.generateBtn.addEventListener('click', generate);
+
+// Enter key in GPS input triggers generate
+el.gpsInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') generate();
+});
+
+// Copy buttons
+setupCopy(el.copyGps, el.gpsOutput);
+setupCopy(el.copyCsv, el.csvOutput);
+
+// Set initial toggle labels
+el.lblManual.classList.add('active');
+el.lblGps.classList.add('inactive');
+
+/* ══════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════ */
+restoreState();
+
+/* ══════════════════════════════════════════════════════════════
+   THEME
+══════════════════════════════════════════════════════════════ */
+(function () {
+  const isLight = () => document.body.classList.contains('light-mode');
+
+  function applyTheme(light) {
+    document.body.classList.toggle('light-mode', light);
+    el.themeToggle.checked = light;
+    el.lblThemeDark.classList.toggle('active',   !light);
+    el.lblThemeDark.classList.toggle('inactive',  light);
+    el.lblThemeLight.classList.toggle('active',   light);
+    el.lblThemeLight.classList.toggle('inactive', !light);
+  }
+
+  // Prefer the saved theme; the anti-FOUC script above applies the same value before paint.
+  const savedTheme = LS.load('theme', isLight() ? 'light' : 'dark');
+  applyTheme(savedTheme === 'light');
+
+  el.themeToggle.addEventListener('change', () => {
+    const light = el.themeToggle.checked;
+    applyTheme(light);
+    LS.save('theme', light ? 'light' : 'dark');
+    showToast('⟡  Theme: ' + (light ? 'Light' : 'Dark'));
+  });
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   TOOLTIP SYSTEM
+══════════════════════════════════════════════════════════════ */
+(function () {
+  const bubble = document.createElement('div');
+  bubble.id = 'tt-bubble';
+  document.body.appendChild(bubble);
+
+  let activeIcon = null;
+
+  function show(icon) {
+    bubble.textContent = icon.dataset.tip;
+    bubble.classList.add('visible');
+    position(icon);
+    activeIcon = icon;
+  }
+
+  function hide() {
+    bubble.classList.remove('visible');
+    activeIcon = null;
+  }
+
+  function position(anchor) {
+    // Measure bubble size with visibility hidden so it doesn't flash
+    bubble.style.visibility = 'hidden';
+    bubble.style.opacity = '1';
+    const bw = bubble.offsetWidth;
+    const bh = bubble.offsetHeight;
+    bubble.style.visibility = '';
+    bubble.style.opacity = '';
+
+    const rect = anchor.getBoundingClientRect();
+    let top  = rect.top - bh - 10;
+    let left = rect.left + rect.width / 2 - bw / 2;
+
+    // Flip below if too close to top
+    if (top < 8) top = rect.bottom + 8;
+
+    // Clamp horizontally
+    const vw = window.innerWidth;
+    if (left < 8)            left = 8;
+    if (left + bw > vw - 8)  left = vw - bw - 8;
+
+    bubble.style.top  = top  + 'px';
+    bubble.style.left = left + 'px';
+  }
+
+  document.querySelectorAll('.tt-icon').forEach(icon => {
+    // Desktop hover
+    icon.addEventListener('mouseenter', () => show(icon));
+    icon.addEventListener('mouseleave', () => { if (activeIcon === icon) hide(); });
+
+    // Mobile / keyboard click toggle
+    icon.addEventListener('click', e => {
+      e.stopPropagation();
+      // Prevent <details> toggle when icon is inside <summary>
+      if (icon.closest('summary')) e.preventDefault();
+      if (activeIcon === icon) hide();
+      else show(icon);
+    });
+  });
+
+  // Close when clicking elsewhere
+  document.addEventListener('click', () => hide());
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   ABOUT MODAL
+══════════════════════════════════════════════════════════════ */
+(function () {
+  const overlay  = document.getElementById('aboutOverlay');
+  const openBtn  = document.getElementById('aboutBtn');
+  const closeBtn = document.getElementById('aboutClose');
+
+  function openModal() {
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    closeBtn.focus();
+  }
+
+  function closeModal() {
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  openBtn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+
+  // Reset button — clears all saved state and reloads
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    if (!confirm('Reset φ-Scout?\nThis clears all saved settings and reloads the page.')) return;
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('phiscout_'))
+      .forEach(k => localStorage.removeItem(k));
+    location.reload();
+  });
+
+  // Close on backdrop click
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+
+  // Close on Escape
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   MISSION LOG
+══════════════════════════════════════════════════════════════ */
+const LOG_CSV_HEADER = 'Mission,Date,Waypoints,Radius_m,CenterX,CenterY,CenterZ,TotalTime_min,TimeUsed_min,TimeRemaining_min,TimeEntryMode,ClosestWaypoint';
+
+function csvEsc(v) {
+  const s = (v === null || v === undefined) ? '' : String(v);
+  return (s.includes(',') || s.includes('"') || s.includes('\n'))
+    ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function parseMinutes(value) {
+  if (value === '' || value === null || value === undefined) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function getSelectedLogTimeMode() {
+  return el.logTimeModeToggle.checked ? 'remaining' : 'used';
+}
+
+function applyLogTimeModeUI() {
+  const remaining = getSelectedLogTimeMode() === 'remaining';
+  el.logTimeModeToggle.checked = remaining;
+  el.lblLogTimeUsed.classList.toggle('active',    !remaining);
+  el.lblLogTimeUsed.classList.toggle('inactive',   remaining);
+  el.lblLogTimeRemaining.classList.toggle('active',   remaining);
+  el.lblLogTimeRemaining.classList.toggle('inactive', !remaining);
+  el.logTimeUsed.placeholder = remaining ? 'e.g. 16 left' : 'e.g. 23 used';
+}
+
+function getCurrentSearchCenter() {
+  if (el.coordMode.checked) {
+    const parsed = parseGPS(el.gpsInput.value);
+    if (parsed.ok) {
+      return { x: parsed.x, y: parsed.y, z: parsed.z };
+    }
+  }
+  return {
+    x: parseFloat(el.cx.value) || 0,
+    y: parseFloat(el.cy.value) || 0,
+    z: parseFloat(el.cz.value) || 0,
+  };
+}
+
+function normalizeLogRow(row) {
+  const totalTime = row.totalTime ?? '';
+  const total = parseMinutes(totalTime);
+  const entryMode = row.timeEntryMode === 'remaining' ? 'remaining' : 'used';
+  let timeUsed = parseMinutes(row.timeUsed);
+  let timeRemaining = parseMinutes(row.timeRemaining);
+
+  if (entryMode === 'remaining') {
+    if (timeRemaining === null && row.timeRemaining === undefined) {
+      timeRemaining = parseMinutes(row.timeUsed);
+    }
+    if (timeUsed === null && total !== null && timeRemaining !== null) {
+      timeUsed = Math.max(0, total - timeRemaining);
+    }
+  } else if (timeRemaining === null && total !== null && timeUsed !== null) {
+    timeRemaining = Math.max(0, total - timeUsed);
+  }
+
+  return {
+    name: row.name ?? '',
+    date: row.date ?? '',
+    waypoints: row.waypoints ?? '',
+    radius: row.radius ?? 3000,
+    centerX: row.centerX ?? '',
+    centerY: row.centerY ?? '',
+    centerZ: row.centerZ ?? '',
+    totalTime,
+    timeUsed: timeUsed ?? '',
+    timeRemaining: timeRemaining ?? '',
+    timeEntryMode: entryMode,
+    closest: row.closest ?? '',
+  };
+}
+
+function buildLogCSV(rows) {
+  if (!rows.length) return LOG_CSV_HEADER;
+  return LOG_CSV_HEADER + '\n' + rows.map(rawRow => {
+    const r = normalizeLogRow(rawRow);
+    return [r.name, r.date, r.waypoints, r.radius, r.centerX, r.centerY, r.centerZ, r.totalTime, r.timeUsed, r.timeRemaining, r.timeEntryMode, r.closest]
+      .map(csvEsc).join(',')
+  }).join('\n');
+}
+
+function updateLogPreview() {
+  const rows = LS.load('missionLog', []);
+  el.logOutput.value = buildLogCSV(rows);
+}
+
+(function () {
+  /* ─ Restore current-mission form fields ──────────────────────────────── */
+  if (!el.logDate.value) el.logDate.value = new Date().toISOString().split('T')[0];
+  ['logName','logDate','logTotalTime','logTimeUsed'].forEach(id => {
+    const v = LS.load(id, null);
+    if (v !== null && v !== '') $(id).value = v;
+  });
+  el.logTimeModeToggle.checked = LS.load('logTimeMode', 'used') === 'remaining';
+  const logFieldLabels = {logName:'Mission name',logDate:'Date',logTotalTime:'Total time',logTimeUsed:'Time value'};
+  ['logName','logDate','logTotalTime','logTimeUsed'].forEach(id => {
+    $(id).addEventListener('input', () => LS.save(id, $(id).value));
+    $(id).addEventListener('change', () => {
+      if ($(id).value) showToast('⟡  ' + logFieldLabels[id] + ' saved');
+    });
+  });
+  el.logClosest.addEventListener('change', () => {
+    const v = el.logClosest.value;
+    showToast(v ? '⟡  Target found at: ' + v : '⟡  Target: not found / not tracked');
+  });
+  el.logTimeModeToggle.addEventListener('change', () => {
+    LS.save('logTimeMode', getSelectedLogTimeMode());
+    applyLogTimeModeUI();
+    showToast('⟡  Time entry: ' + (el.logTimeModeToggle.checked ? 'Time Left' : 'Time Used'));
+  });
+  applyLogTimeModeUI();
+
+  /* ─ Render saved log on load ─────────────────────────────────────── */
+  updateLogPreview();
+
+  /* ─ Add to Log ─────────────────────────────────────────────────── */
+  $('logAdd').addEventListener('click', () => {
+    const center = getCurrentSearchCenter();
+    const timeEntryMode = getSelectedLogTimeMode();
+    const totalTime = el.logTotalTime.value || '';
+    const timeEntryValue = el.logTimeUsed.value || '';
+    const totalMinutes = parseMinutes(totalTime);
+    const enteredMinutes = parseMinutes(timeEntryValue);
+    let timeUsed = '';
+    let timeRemaining = '';
+
+    if (timeEntryMode === 'remaining') {
+      timeRemaining = timeEntryValue;
+      if (totalMinutes !== null && enteredMinutes !== null) {
+        timeUsed = Math.max(0, totalMinutes - enteredMinutes);
+      }
+    } else {
+      timeUsed = timeEntryValue;
+      if (totalMinutes !== null && enteredMinutes !== null) {
+        timeRemaining = Math.max(0, totalMinutes - enteredMinutes);
+      }
+    }
+
+    const row = {
+      name:      el.logName.value      || '',
+      date:      el.logDate.value      || new Date().toISOString().split('T')[0],
+      waypoints: el.logN.value         || '',
+      radius:    parseFloat(el.sphereRadius.value) || SPHERE_R,
+      centerX:   center.x,
+      centerY:   center.y,
+      centerZ:   center.z,
+      totalTime,
+      timeUsed,
+      timeRemaining,
+      timeEntryMode,
+      closest:   el.logClosest.value   || '',
+    };
+    const rows = LS.load('missionLog', []);
+    rows.push(row);
+    LS.save('missionLog', rows);
+    updateLogPreview();
+    showToast(`⧡  Mission #${rows.length} added to log`);
+    // Clear time/closest fields ready for next run
+    el.logTotalTime.value = ''; LS.save('logTotalTime', '');
+    el.logTimeUsed.value  = ''; LS.save('logTimeUsed',  '');
+    el.logClosest.value   = '';
+  });
+
+  /* ─ Clear Fields ───────────────────────────────────────────────── */
+  $('logClearRow').addEventListener('click', () => {
+    if (!confirm('Clear all mission log fields?\nThis resets the form but does not delete any logged entries.')) return;
+    ['logName','logDate','logTotalTime','logTimeUsed'].forEach(id => {
+      $(id).value = ''; LS.save(id, '');
+    });
+    el.logN.value = '';
+    el.logDate.value = new Date().toISOString().split('T')[0];
+  });
+
+  /* ─ Copy Log CSV ──────────────────────────────────────────────── */
+  $('logCopy').addEventListener('click', () => {
+    if (!el.logOutput.value) return;
+    navigator.clipboard.writeText(el.logOutput.value)
+      .then(() => {
+        const btn = $('logCopy');
+        btn.textContent = '✓ Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
+      })
+      .catch(() => showToast('✕  Copy failed'));
+  });
+
+  /* ─ Export Log CSV ────────────────────────────────────────────── */
+  $('logExportCsv').addEventListener('click', () => {
+    const rows = LS.load('missionLog', []);
+    const csv  = buildLogCSV(rows);
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `phiscout-log-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`⧡  Log exported (${rows.length} mission${rows.length !== 1 ? 's' : ''})`);
+  });
+
+  /* ─ Export All (JSON snapshot) ───────────────────────────────────── */
+  $('logExportAll').addEventListener('click', () => {
+    const snap = {
+      tool:      'φ-scout',
+      version:   1,
+      exported:  new Date().toISOString(),
+      appState: {
+        coordMode:   el.coordMode.checked,
+        theme:        document.body.classList.contains('light-mode') ? 'light' : 'dark',
+        cx:           el.cx.value,
+        cy:           el.cy.value,
+        cz:           el.cz.value,
+        gpsInput:     el.gpsInput.value,
+        wpPrefix:     el.wpPrefix.value,
+        npts:         (document.querySelector('input[name="npts"]:checked') || {}).value || '',
+        colorMode:    (document.querySelector('input[name="colorMode"]:checked') || {}).value || '',
+        singleColor:  el.singleColor.value,
+        sphereRadius: el.sphereRadius.value,
+        spinDir:      el.spinDir.checked,
+        gpsOutput:    el.gpsOutput.value,
+        csvOutput:    el.csvOutput.value,
+      },
+      currentMission: {
+        name:      el.logName.value,
+        date:      el.logDate.value,
+        waypoints: el.logN.value,
+        totalTime: el.logTotalTime.value,
+        timeMode:  getSelectedLogTimeMode(),
+        timeValue: el.logTimeUsed.value,
+        closest:   el.logClosest.value,
+      },
+      missionLog: LS.load('missionLog', []),
+    };
+    const blob = new Blob([JSON.stringify(snap, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `phiscout-snapshot-${snap.exported.split('T')[0]}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('⧡  Full snapshot exported');
+  });
+
+  /* ─ Import All (JSON snapshot) ───────────────────────────────────── */
+  $('logImportAll').addEventListener('click', () => $('logImportFile').click());
+
+  $('logImportFile').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = evt => {
+      try {
+        const snap = JSON.parse(evt.target.result);
+        if (!snap.appState && !snap.missionLog) throw new Error('not a phi-scout snapshot');
+
+        const s = snap.appState || {};
+
+        // Restore all LS keys so restoreState() picks them up after reload
+        if (s.coordMode    !== undefined) LS.save('coordMode',   s.coordMode);
+        if (s.theme        !== undefined) LS.save('theme',       s.theme);
+        if (s.cx           !== undefined) LS.save('cx',          s.cx);
+        if (s.cy           !== undefined) LS.save('cy',          s.cy);
+        if (s.cz           !== undefined) LS.save('cz',          s.cz);
+        if (s.gpsInput     !== undefined) LS.save('gpsInput',    s.gpsInput);
+        if (s.wpPrefix     !== undefined) LS.save('wpPrefix',    s.wpPrefix);
+        if (s.npts         !== undefined) LS.save('npts',        s.npts);
+        if (s.colorMode    !== undefined) LS.save('colorMode',   s.colorMode);
+        if (s.singleColor  !== undefined) LS.save('singleColor',  s.singleColor);
+        if (s.sphereRadius !== undefined) LS.save('sphereRadius', s.sphereRadius);
+        if (s.spinDir      !== undefined) LS.save('spinDir',      s.spinDir);
+        if (s.gpsOutput    !== undefined) LS.save('gpsOutput',    s.gpsOutput);
+        if (s.csvOutput    !== undefined) LS.save('csvOutput',    s.csvOutput);
+
+        const m = snap.currentMission || {};
+        if (m.name      !== undefined) LS.save('logName',      m.name);
+        if (m.date      !== undefined) LS.save('logDate',      m.date);
+        if (m.totalTime !== undefined) LS.save('logTotalTime', m.totalTime);
+        if (m.timeMode  !== undefined) LS.save('logTimeMode',  m.timeMode);
+        if (m.timeValue !== undefined) LS.save('logTimeUsed',  m.timeValue);
+        if (m.timeUsed  !== undefined && m.timeValue === undefined) LS.save('logTimeUsed',  m.timeUsed);
+
+        if (Array.isArray(snap.missionLog)) LS.save('missionLog', snap.missionLog);
+
+        showToast('⧡  Snapshot imported — reloading…');
+        setTimeout(() => location.reload(), 900);
+      } catch (_) {
+        showToast('✕  Not a valid φ-Scout snapshot');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+})();
+</script>
+</body>
+</html>
